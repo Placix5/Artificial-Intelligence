@@ -6,63 +6,12 @@ AI:individuals-own [
   content  ; Where the representation of the solution is stored in the individual
   fitness  ; Where the fitness of the individual is stored
 ]
+
 ;---------------------------------------------------------------------------------
+; Funciones principales del algoritmo genético
 
-to-report AI:PointCrossover [c1 c2]
-  ;beta random 0..1
-  let beta random-float 1
-  
-  ;Punto de cruce
-  let index (random (length c1))
-  
-  let p1n ((item index c2) - beta * ((item index c2) - (item index c1))) 
-  let p2n ((item index c1) - beta * ((item index c1) - (item index c2))) 
-  
-  let h1 sublist c1 0 (index - 1) 
-  let h2 sublist c2 0 (index - 1)
-  
-  set h1 (lput p1n h1)
-  set h2 (lput p2n h2)
-  
-  (foreach (range (index + 1) (length c1))[i -> set h1 (lput (item i c2) h1) set h2 (lput (item i c1) h2)])
-  
-  report list (sentence h1) (sentence h2)
-  
- end
-
-to-report AI:2PointCrossover [c1 c2]
-  
-  let index1 0
-  let index2 0
-  
-  while[index1 >= index2][
-    set index1 random length c1
-    set index2 random length c1
-  ]
-  
-  let h1 sublist c1 0 index1
-  let h2 sublist c2 0 index1
-  
-  (foreach (range index1 (length c1))[i -> 
-    ifelse(i < index2 and (random 1) = 1)[set h1 (lput (item i c2) h1) set h2 (lput (item i c1) h2)]
-    [set h1 (lput (item i c1) h1) set h2 (lput (item i c2) h2)]])
-  
-  report list (sentence h1) (sentence h2)
-  
-end
-
-to-report AI:UniformCrossover [c1 c2]
-  
-  let h1 []
-  let h2 []
-  
-  (foreach c1 c2
-  [[p1 p2] -> ifelse(p1 != p2 and (random 1) = 1)[set h1 (lput p2 h1) set h2 (lput p1 h2)]
-    [set h1 (lput p1 h1) set h2 (lput p2 h2)]])
-  
-  report list (sentence h1) (sentence h2)
-  
-end
+; Función de la que parte el algoritmo genético en la que se escoge la función que definirá
+; la siguiente población en función de la población actual
 
 to-report AI:GeneticAlgorithm [#num-iters #population #crossover-ratio #mutation-ratio]
   repeat #num-iters [
@@ -72,7 +21,8 @@ to-report AI:GeneticAlgorithm [#num-iters #population #crossover-ratio #mutation
   report max-one-of AI:individuals [fitness]
 end
 
-
+; Create-next-generation crea la siguiente generación mediante el método de elección
+; de padres que se haya escogido en la interfaz
 
 to AI:Create-next-generation [#population #crossover-ratio #mutation-ratio]
   
@@ -86,24 +36,20 @@ to AI:Create-next-generation [#population #crossover-ratio #mutation-ratio]
   ; Make Crossovers
   repeat number-crossovers
   [
-    ; Tournament 3 selection: we take 3 random individuals and choose the best 
-    ; of them. Selectors will be the parents of the new spring.
 
-    let father1 max-one-of (n-of 3 old-generation) [fitness]
-    let father2 max-one-of (n-of 3 old-generation) [fitness]
-
-    (ifelse
-      algCrossover = 0 [let content-child AI:UniformCrossover ([content] of father1) ([content] of father2)]
-      algCrossover = 1 [let content-child AI:PointCrossover ([content] of father1) ([content] of father2)]
-      algCrossover = 2 [let content-child AI:2PointCrossover ([content] of father1) ([content] of father2)]
-      algCrossover = 3 [let content-child AI:CustomCrossover ([content] of father1) ([content] of father2)]
+    let fathers (Tekken3 old-generation)
+    let content-child []
     
+    (ifelse
+      algCrossover = 1 [set content-child (AI:UniformCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
+      algCrossover = 2 [set content-child (AI:PointCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
+      algCrossover = 3 [set content-child (AI:2PointCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
+      algCrossover = 4 [set content-child (AI:CustomCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
     )
-    let content-child AI:crossover ([content] of father1) ([content] of father2)
 
     ; From 2 parents we create 2 children
-    ask father1 [ hatch-AI:individuals 1 [ set content item 0 content-child ] ]
-    ask father2 [ hatch-AI:individuals 1 [ set content item 1 content-child ] ]
+    ask (first fathers) [ hatch-AI:individuals 1 [ set content item 0 content-child ] ]
+    ask (last fathers) [ hatch-AI:individuals 1 [ set content item 1 content-child ] ]
   ]
 
   ; The rest of pool will be cloned directly from good individuals of the
@@ -120,9 +66,120 @@ to AI:Create-next-generation [#population #crossover-ratio #mutation-ratio]
   ; Mutate the new spring and compute the new fitness
   ask AI:individuals
   [
-    AI:mutate #mutation-ratio
+    (ifelse
+      algMutate = 1 [AI:BasicMutate #mutation-ratio]
+      algMutate = 2 [AI:RandomMutate #mutation-ratio]
+    )
+    
     AI:Compute-fitness
   ]
+  
+end
+
+;---------------------------------------------------------------------------------
+; Procedimientos de cruzamiento
+
+; PointCrossover cruza dos cromosomas definiendo un punto, cortando los cromosomas
+; en ese punto, cambiando dicho punto e intercambiando el resto de los genes entre ambos
+; cromosomas padres para así poder generar dos hijos
+
+to-report AI:PointCrossover [c1 c2]
+  ; Beta random 0..1
+  let beta random-float 1
+  
+  ;Punto de cruce
+  let index (random (length c1))
+  
+  let p1n ((item index c2) - beta * ((item index c2) - (item index c1))) ; Nuevo gen en punto de corte
+  let p2n ((item index c1) - beta * ((item index c1) - (item index c2))) ; Nuevo gen en punto de corte
+  
+  let h1 sublist c1 0 (index - 1) ; Cromosoma hijo1
+  let h2 sublist c2 0 (index - 1) ; Cromosoma hijo2
+  
+  set h1 (lput p1n h1)
+  set h2 (lput p2n h2)
+  
+  ; Intercambio de los genes restantes entre los cromosomas padres hacia los hijos
+  (foreach (range (index + 1) (length c1))[i -> set h1 (lput (item i c2) h1) set h2 (lput (item i c1) h2)])
+  
+  report (list h1 h2)
+  
+ end
+
+; 2PointCrossover cruza dos cromosomas definiendo dos puntos, corta los cromosomas en el primer punto,
+; intercambia aleatoriamente los genes entre el primer punto y el segundo y el resto de puntos los deja
+; igual que antes
+
+to-report AI:2PointCrossover [c1 c2]
+  
+  let index1 0 ; Primer índice
+  let index2 0 ; Segundo índice
+  
+  ; Los índices se generan aleatoriamente hasta que primer índice es más pequeño que el segundo
+  while[index1 >= index2][
+    set index1 random length c1 
+    set index2 random length c1
+  ]
+  
+  let h1 sublist c1 0 index1 ; Cromosoma hijo1
+  let h2 sublist c2 0 index1 ; Cromosoma hijo2
+  
+  ; Intercambio de los genes entre los cromosomas padres hacia los hijos para los índices dados
+  (foreach (range index1 (length c1))[i -> 
+    ifelse(i < index2 and (random 1) = 1)[set h1 (lput (item i c2) h1) set h2 (lput (item i c1) h2)]
+    [set h1 (lput (item i c1) h1) set h2 (lput (item i c2) h2)]])
+  
+  report (list h1 h2)
+  
+end
+
+; UniformCrossover cruza dos cromosomas intercambiando solamente aquellos genes que no sean iguales
+; de manera totalmente aleatoria
+
+to-report AI:UniformCrossover [c1 c2]
+  
+  let h1 [] ; Cromosoma hijo1
+  let h2 [] ; Cromosoma hijo2
+  
+  ; Intercambio aleatorio de los genes que no son iguales para los dos padres
+  (foreach c1 c2
+  [[p1 p2] -> ifelse(p1 != p2 and (random 1) = 1)[set h1 (lput p2 h1) set h2 (lput p1 h2)]
+    [set h1 (lput p1 h1) set h2 (lput p2 h2)]])
+  
+  report (list h1 h2)
+  
+end
+
+;---------------------------------------------------------------------------------
+; Funciones de mutación
+
+to AI:BasicMutate [#mutation-ratio]
+  
+  set content map [p -> ifelse-value(random-float 100.0 < #mutation-ratio)[1 - p][p]] content
+  
+end
+
+to AI:RandomMutate [#mutation-ratio]
+  
+  set content map [p -> ifelse-value(random-float 100.0 < #mutation-ratio)[random-float 1][p]] content
+  
+end
+;---------------------------------------------------------------------------------
+; Funciones de selección de próxima población
+
+; Tekken3 selecciona 3 cromosomas aleatorios y elige el mejor de ellos para que se convierta
+; en padre. Esto lo hace dos veces para generar dos padres
+
+to-report Tekken3[old-generation]
+  
+    ; Tournament 3 selection: we take 3 random individuals and choose the best 
+    ; of them. Selectors will be the parents of the new spring.
+
+    let father1 max-one-of (n-of 3 old-generation) [fitness]
+    let father2 max-one-of (n-of 3 old-generation) [fitness]
+  
+  report (list father1 father2)
+  
 end
 
 ;------------------------------------------------------------------------------

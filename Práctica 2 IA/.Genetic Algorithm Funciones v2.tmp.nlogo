@@ -110,6 +110,16 @@ GRAPHICS-WINDOW
 ticks
 30.0
 
+CHOOSER
+0
+0
+0
+0
+NIL
+NIL
+
+0
+
 BUTTON
 75
 10
@@ -265,16 +275,6 @@ algCrossover
 algCrossover
 1 2 3 4
 1
-
-CHOOSER
-895
-75
-1033
-120
-algMutate
-algMutate
-1 2
-0
 
 @#$#@#$#@
 @#$#@#$#@
