@@ -82,6 +82,15 @@ to-report AI:CustomCrossover[c1 c2]
   report (list c1 c2)
 
 end
+
+to-report AI:CustomSelecction [old-generation]
+
+    let father1 one-of (old-generation)
+    let father2 one-of (old-generation)
+
+  report (list father1 father2)
+
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 145
@@ -109,16 +118,6 @@ GRAPHICS-WINDOW
 1
 ticks
 30.0
-
-CHOOSER
-0
-0
-0
-0
-NIL
-NIL
-
-0
 
 BUTTON
 75
@@ -267,14 +266,34 @@ PENS
 "default" 1.0 0 -16777216 true "" ""
 
 CHOOSER
-890
-15
-1028
-60
-algCrossover
-algCrossover
+145
+225
+237
+270
+selCrossover
+selCrossover
 1 2 3 4
 1
+
+CHOOSER
+260
+225
+352
+270
+selMutate
+selMutate
+1 2 3
+0
+
+CHOOSER
+145
+280
+237
+325
+selSelecction
+selSelecction
+1 2 3
+0
 
 @#$#@#$#@
 @#$#@#$#@

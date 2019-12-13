@@ -37,14 +37,20 @@ to AI:Create-next-generation [#population #crossover-ratio #mutation-ratio]
   repeat number-crossovers
   [
 
-    let fathers (Tekken3 old-generation)
+    let fathers []
     let content-child []
     
     (ifelse
-      algCrossover = 1 [set content-child (AI:UniformCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
-      algCrossover = 2 [set content-child (AI:PointCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
-      algCrossover = 3 [set content-child (AI:2PointCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
-      algCrossover = 4 [set content-child (AI:CustomCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
+      selSelecction = 1 [set fathers (AI:Tekken old-generation)]
+      selSelecction = 2 [set fathers (AI:Elitist old-generation)]
+      selSelecction = 3 [set fathers (AI:CustomSelecction old-generation)]
+    )
+    
+    (ifelse
+      selCrossover = 1 [set content-child (AI:UniformCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
+      selCrossover = 2 [set content-child (AI:PointCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
+      selCrossover = 3 [set content-child (AI:2PointCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
+      selCrossover = 4 [set content-child (AI:CustomCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
     )
 
     ; From 2 parents we create 2 children
@@ -67,8 +73,9 @@ to AI:Create-next-generation [#population #crossover-ratio #mutation-ratio]
   ask AI:individuals
   [
     (ifelse
-      algMutate = 1 [AI:BasicMutate #mutation-ratio]
-      algMutate = 2 [AI:RandomMutate #mutation-ratio]
+      selMutate = 1 [AI:BasicMutate #mutation-ratio]
+      selMutate = 2 [AI:RandomMutate #mutation-ratio]
+      selMutate = 3 [AI:CustomMutate #mutation-ratio]
     )
     
     AI:Compute-fitness
@@ -153,11 +160,19 @@ end
 ;---------------------------------------------------------------------------------
 ; Funciones de mutación
 
+; AI:BasicMutate hace una mutación básica, crea un número aleatorio y lo compara
+; con mutation-ratio, en el caso en el que sea más pequeño, cambia el gen,
+; en el caso en el que no lo sea, el gen se queda igual
+
 to AI:BasicMutate [#mutation-ratio]
   
   set content map [p -> ifelse-value(random-float 100.0 < #mutation-ratio)[1 - p][p]] content
   
 end
+
+; AI:RandomMutate hace una mutación aleatoria, crea un número aleatorio y lo compara
+; con mutation-ratio, en el caso en el que sea más pequeño, cambia el gen por un número aleatorio,
+; en el caso en el que no lo sea, el gen se queda igual
 
 to AI:RandomMutate [#mutation-ratio]
   
@@ -167,16 +182,28 @@ end
 ;---------------------------------------------------------------------------------
 ; Funciones de selección de próxima población
 
-; Tekken3 selecciona 3 cromosomas aleatorios y elige el mejor de ellos para que se convierta
+; Tournament 3 selection: we take 3 random individuals and choose the best 
+; of them. Selectors will be the parents of the new spring.
+
+; AI:Tekken selecciona 3 cromosomas aleatorios y elige el mejor de ellos para que se convierta
 ; en padre. Esto lo hace dos veces para generar dos padres
 
-to-report Tekken3[old-generation]
-  
-    ; Tournament 3 selection: we take 3 random individuals and choose the best 
-    ; of them. Selectors will be the parents of the new spring.
+to-report AI:Tekken[old-generation]
 
-    let father1 max-one-of (n-of 3 old-generation) [fitness]
-    let father2 max-one-of (n-of 3 old-generation) [fitness]
+  let father1 max-one-of (n-of 3 old-generation) [fitness] ; Padre1
+  let father2 max-one-of (n-of 3 old-generation) [fitness] ; Padre2
+  
+  report (list father1 father2)
+  
+end
+
+; AI:Elitist selecciona los cromosomas con la mejor función de fitness para que sean
+; los padres de la siguiente generación
+
+to-report AI:Elitist[old-generation]
+  
+  let father1 max-one-of (old-generation) [fitness] ; Padre1
+  let father2 max-one-of (old-generation) [fitness] ; Padre2
   
   report (list father1 father2)
   

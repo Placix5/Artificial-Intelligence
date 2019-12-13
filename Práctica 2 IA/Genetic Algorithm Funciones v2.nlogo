@@ -82,6 +82,21 @@ to-report AI:CustomCrossover[c1 c2]
   report (list c1 c2)
 
 end
+
+to-report AI:CustomSelecction [old-generation]
+
+    let father1 one-of (old-generation)
+    let father2 one-of (old-generation)
+
+  report (list father1 father2)
+
+end
+
+to AI:CustomMutate [#mutation-ratio]
+
+  set content map [p -> ifelse-value(random-float 100.0 < #mutation-ratio)[1 - random-float 1][p]] content
+
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 145
@@ -257,23 +272,33 @@ PENS
 "default" 1.0 0 -16777216 true "" ""
 
 CHOOSER
-890
-15
-1028
-60
-algCrossover
-algCrossover
+145
+225
+237
+270
+selCrossover
+selCrossover
 1 2 3 4
 1
 
 CHOOSER
-895
-75
-1033
-120
-algMutate
-algMutate
-1 2
+260
+225
+352
+270
+selMutate
+selMutate
+1 2 3
+0
+
+CHOOSER
+145
+280
+237
+325
+selSelecction
+selSelecction
+1 2 3
 0
 
 @#$#@#$#@
