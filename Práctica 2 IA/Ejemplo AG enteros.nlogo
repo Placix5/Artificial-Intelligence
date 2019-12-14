@@ -1,15 +1,18 @@
 ; ------------------- Include Genetic Algorithm Module --------------------
 
-__includes ["GeneticAlgorithm - Practica v2.nls" ]
+__includes ["GeneticAlgorithm - Practica v2.nls"]
 
 ; --------------------------- Main procedures calling ---------------------
 
-;breed [puntos punto]
+to-report ftest [x]
+  report x ^ 2 - .5
+end
 
 
 to Setup
   ca
-
+  AI:Initial-Population population
+  AI:ExternalUpdate
   plots
 end
 
@@ -45,7 +48,8 @@ end
 ; It depends on the problem to be solved as it uses a concrete representation
 to AI:Initial-Population [#population]
   create-AI:individuals #population [
-    set content (list (random-float 5)(random-float 5))
+    set content map [una-f] (n-values 10 [x -> x])
+    ;show map first content
     AI:Compute-fitness
     hide-turtle
   ]
@@ -53,34 +57,23 @@ end
 
 ; Individual report to compute its fitness
 to AI:Compute-fitness
-
-  let x (first content)
-  let y (last content)
-
-  set fitness (x * sin(4 * x) + 1.1 * y * sin(2 * y))
-end
-
-to AI:ExternalUpdate
-  ask AI:individuals [AI:Compute-Fitness]
-
-  let best max-one-of AI:individuals [fitness]
-  let f [content] of best
-  set-current-plot "f(x)"
-  clear-plot
-  plotxy 0 0
-  plot-pen-down
-  set-plot-pen-color black
-  plot-pen-up
-  plots
-  ; show changes
-  display
+  set fitness 100 - sum map dif (n-values 100 [x -> x / 100])
 end
 
 
-to-report AI:CustomCrossover[c1 c2]
 
-  report (list c1 c2)
-
+; Crossover procedure
+; It takes content from two parents and returns a list with two contents.
+; When content is a list (as in DNA case) it uses a random cut-point to
+; cut both contents and mix them:
+; a1|a2, b1|b2, where long(ai)=long(bi)
+; and report: a1|b2, b1|a2
+to-report AI:CustomCrossover [c1 c2]
+  let cut-point 1 + random (length c1 - 1)
+  report list (sentence (sublist c1 0 cut-point)
+                        (sublist c2 cut-point length c2))
+              (sentence (sublist c2 0 cut-point)
+                        (sublist c1 cut-point length c1))
 end
 
 to-report AI:CustomSelecction [old-generation]
@@ -90,6 +83,123 @@ to-report AI:CustomSelecction [old-generation]
 
   report (list father1 father2)
 
+end
+
+
+; Mutation procedure
+; Random mutation of units of the content.
+; Individual procedure
+to AI:CustomMutate [#mutation-ratio]
+  set content map [x -> ifelse-value (random-float 100.0 < #mutation-ratio) [una-f] [x]] content
+end
+
+to-report una-f
+  let op- (list "x-y" [[x1 x2] -> x1 - x2])
+  let opi- (list "y-x" [[x1 x2] -> x2 - x1])
+  let op+ (list "x+y" [[x1 x2] -> x1 + x2])
+  let op* (list "x*y" [[x1 x2] -> x1 * x2])
+  let op/ (list "x/y" [[x1 x2] -> ifelse-value (x2 != 0) [x1 / x2][1]])
+  let opi/ (list "y/x" [[x1 x2] -> ifelse-value (x1 != 0) [x2 / x1][1]])
+  let p2 (list "y" [[x1 x2] -> x2])
+  let c0 (list "0" [[x1 x2] -> 0])
+  let c1 (list "1" [[x1 x2] -> 1])
+  let c2 (list "2" [[x1 x2] -> 2])
+  let c3 (list "3" [[x1 x2] -> 3])
+  let c4 (list "4" [[x1 x2] -> 4])
+  let c5 (list "5" [[x1 x2] -> 5])
+  let c6 (list "6" [[x1 x2] -> 6])
+  let c7 (list "7" [[x1 x2] -> 7])
+  let c8 (list "8" [[x1 x2] -> 8])
+  let c9 (list "9" [[x1 x2] -> 9])
+  let func (list op- opi- op+ op* op/ opi/ p2)
+  let ctes (list c0 c1 c2 c3 c4 c5 c6 c7 c8 c9)
+  let new ifelse-value (random 10 = 1) [one-of ctes][one-of func]
+  report new
+end
+
+to limpia
+  let c0 (list "0" [[x1 x2] -> 0])
+  let c1 (list "1" [[x1 x2] -> 1])
+  let c2 (list "2" [[x1 x2] -> 2])
+  let c3 (list "3" [[x1 x2] -> 3])
+  let c4 (list "4" [[x1 x2] -> 4])
+  let c5 (list "5" [[x1 x2] -> 5])
+  let c6 (list "6" [[x1 x2] -> 6])
+  let c7 (list "7" [[x1 x2] -> 7])
+  let c8 (list "8" [[x1 x2] -> 8])
+  let c9 (list "9" [[x1 x2] -> 9])
+  let ctes (list c0 c1 c2 c3 c4 c5 c6 c7 c8 c9)
+  foreach ctes [ x ->
+    if member? x content [
+      let p position x content
+      set content sublist content 0 (p + 1)
+    ]
+  ]
+end
+; Auxiliary procedure to be executed in every iteration of the main loop.
+; Usually to show or update some information.
+to AI:ExternalUpdate
+  ask AI:individuals [
+    limpia
+    AI:Compute-Fitness
+  ]
+  ; take the best individual and its content
+  let best max-one-of AI:individuals [fitness]
+  ;let c [content] of best
+  ; remove previous queens from board
+  ;show c
+  ;show map first c
+  ; Update plots
+  let f [content] of best
+  set-current-plot "f(x)"
+  clear-plot
+  plotxy 0 0
+  plot-pen-down
+  set-plot-pen-color black
+  foreach (n-values 100 [x -> x / 100]) [
+    x ->
+    let res apply f x
+    if res != false [plotxy x res]
+  ]
+  plot-pen-up
+  plotxy 0 0
+  plot-pen-down
+  set-plot-pen-color red
+  foreach (n-values 100 [x -> x / 100]) [
+    x ->
+    let res ftest x
+    if res != false [plotxy x res]
+  ]
+  plots
+  ; show changes
+  display
+end
+
+to-report dif [x]
+  let res (apply content x)
+  ifelse res != false
+  [ report abs ((ftest x) - res)]
+  [ report 0 ]
+end
+
+
+to-report apply [f x]
+  ;show f
+  ifelse length f = 1
+    [
+      report (run-result (last first f) x 0)
+    ]
+    [
+      report (run-result (last first f) x (apply (bf f) x))
+    ]
+end
+
+to-report applyc [f x]
+  let res 0
+  carefully
+  [ set res (apply f x) ]
+  [ set res false ]
+  report res
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -267,31 +377,31 @@ PENS
 
 CHOOSER
 145
-225
-237
-270
+230
+283
+275
 selCrossover
 selCrossover
 1 2 3 4
-1
+0
 
 CHOOSER
-260
-225
-352
-270
-selMutate
-selMutate
+145
+295
+283
+340
+selSelecction
+selSelecction
 1 2 3
 0
 
 CHOOSER
 145
-280
-237
-325
-selSelecction
-selSelecction
+360
+283
+405
+selMutate
+selMutate
 1 2 3
 0
 

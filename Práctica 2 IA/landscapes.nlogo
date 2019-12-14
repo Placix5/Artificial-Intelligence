@@ -1,90 +1,66 @@
-; ------------------- Include Genetic Algorithm Module --------------------
+extensions [ landscapes ]
 
-__includes ["GeneticAlgorithm.nls"]
+patches-own [
+  height
+]
 
-; --------------------------- Main procedures calling ---------------------
+turtles-own [
+  peak? ; indicates whether a turtle has reached a "peak",
+        ; that is, it can no longer go "uphill" from where it stands
+]
 
-;breed [puntos punto]
-
-
-to Setup
-  ca
-
-  plots
-end
-
-to Launch
-  let best AI:GeneticAlgorithm 200 Population crossover-ratio mutation-ratio
-  plots
-  show map first [content] of best
-end
-
-to plots
-  let lista-fitness [fitness] of AI:individuals
-  let mejor-fitness max lista-fitness
-  let media-fitness mean lista-fitness
-  let peor-fitness min lista-fitness
-  set-current-plot "Fitness"
-;  set-current-plot-pen "mean"
-;  plot media-fitness
-  set-current-plot-pen "best"
-  plot mejor-fitness
-;  set-current-plot-pen "worst"
-;  plot peor-fitness
-  if plot-diversity?
-  [
-    set-current-plot "Diversity"
-    set-current-plot-pen "diversity"
-    plot AI:diversity
+to setup
+  clear-all
+  landscapes:generate landscape "height"
+  ask patches [ set pcolor scale-color grey height 0 1 ]
+  ; put some turtles on patch centers in the landscape
+  ask n-of population patches [
+    sprout 1 [
+      set peak? false
+      set color [ 255 0 0 25 ]
+      pen-down
+    ]
   ]
+  reset-ticks
 end
 
-;------------------ Customizable Procedures ---------------------------------
-
-; Create Initial Population.
-; It depends on the problem to be solved as it uses a concrete representation
-to AI:Initial-Population [#population]
-  create-AI:individuals #population [
-    set content (list (random-float 5)(random-float 5))
-    AI:Compute-fitness
-    hide-turtle
+to go
+  ; stop when all turtles are on peak
+  if all? turtles [ peak? ] [ stop ]
+  ask turtles [
+    ; remember where we started
+    let old-patch patch-here
+    ; to use `uphill`, the turtles specify a patch variable
+    uphill height
+    ; are we still where we started? if so, we didn't
+    ; move, so we must be on a peak
+    if old-patch = patch-here [
+      set peak? true
+      set shape "target"
+      set color ifelse-value (height = 1) [ lime ] [ cyan ]
+      set size height * 5
+    ]
   ]
+  tick
 end
 
-; Individual report to compute its fitness
-to AI:Compute-fitness
-
-  let x (first content)
-  let y (last content)
-
-  set fitness (x * sin(4 * x) + 1.1 * y * sin(2 * y))
+to cycle
+  let next-index (position landscape landscapes:list) + 1
+  if next-index >= length landscapes:list [ set next-index 0 ]
+  set landscape item next-index landscapes:list
+  setup
+  wait 1
+  while [ not all? turtles [ peak? ] ] [ go ]
 end
-
-to AI:ExternalUpdate
-  ask AI:individuals [AI:Compute-Fitness]
-
-  let best max-one-of AI:individuals [fitness]
-  let f [content] of best
-  set-current-plot "f(x)"
-  clear-plot
-  plotxy 0 0
-  plot-pen-down
-  set-plot-pen-color black
-  plot-pen-up
-  plots
-  ; show changes
-  display
-end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
-145
-10
-353
-219
+453
+18
+1064
+630
 -1
 -1
-20.0
+3.0
 1
 10
 1
@@ -94,38 +70,31 @@ GRAPHICS-WINDOW
 1
 1
 1
-0
-9
-0
-9
+-100
+100
+-100
+100
 0
 0
 1
 ticks
 30.0
 
-BUTTON
-75
-10
-140
-43
-NIL
-Launch
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
+CHOOSER
+25
+21
+429
+66
+landscape
+landscape
+"3 POT HOLES" "ACKLEY'S FUNCTION" "ACKLEY'S PATH FUNCTION 10" "AXIS PARALLEL HYPER-ELLIPSOID FUNCTION" "BOHACHEVSKY'S FUNCTION" "BRANINS'S RCOS FUNCTION" "CPF1" "CPF2" "DE JONG F1" "EASOM'S FUNCTION" "EUCLIDEAN" "EXP" "F1" "F2" "F3" "F4 (PSHUBERT1)" "F5 (PSHUBERT2)" "F6 (QUARTIC)" "F7 (SHUBERT FUNCTION)" "FLAT" "G1" "G2" "G3" "GENERALIZED GRIEWANK FUNCTION" "GENERALIZED HIMMELBLAU'S FUNCTION" "GENERALIZED PENALIZED FUNCTION 1" "GENERALIZED PENALIZED FUNCTION 2" "GENERALIZED RASTRIGIN'S FUNCTION" "GENERALIZED ROSENBROCK'S FUNCTION" "GENERALIZED SCHWEFELS PROBLEM 2.26" "GOLDSTEIN-PRICE'S FUNCTION" "GRIEWANGK'S FUNCTION 8" "HANSENS FUNCTION" "HORN'S FMMEASY" "HORNS 5 PEAKS (MODIFIED)" "LANGERMANN'S FUNCTION 11 (M=4)" "LANGERMANN'S FUNCTION 11 (M=7)" "M1" "M2" "M3" "M4" "M5 (HIMMELBLAU'S FUNCTION)" "M6 (SHEKEL'S FOXHOLES)" "MICHALEWICZ'S FUNCTION 12" "MOVED AXIS PARALLEL HYPER-ELLIPSOID FUNCTION" "MULTI FUNCTION" "PEAKS" "QUARTIC FUNCTION (NOISE)" "RASTRIGIN'S FUNCTION 6" "RIPPLES" "ROOTS" "ROSENBROCK'S VALLEY (DE JONG F2)" "ROTATED HYPER-ELLIPSOID FUNCTION" "SCHAFFER'S FUNCTION" "SCHWEFEL'S FUNCTION 7" "SCHWEFEL'S PROBLEM 1.2" "SCHWEFEL'S PROBLEM 2.21" "SCHWEFEL'S PROBLEM 2.22" "SHUBERT FUNCTION" "SIX-HUMP CAMEL BACK FUNCTION" "SPHERE" "SQUASHED FROG FUNCTION (TIMBO)" "STEP FUNCTION" "SUM OF DIFFERENT POWER FUNCTION" "TEST FUNCTION F1" "TEST FUNCTION F2 (ROSENBROCK'S FUNCTION)" "TEST FUNCTION F3" "TEST FUNCTION F4 (QUARTIC FUNCTION)" "TEST FUNCTION F5 (SHEKEL'S FUNCTION)"
+0
 
 BUTTON
-10
-10
-70
-43
+25
+130
+98
+163
 NIL
 setup
 NIL
@@ -138,119 +107,146 @@ NIL
 NIL
 1
 
-SLIDER
-10
-45
-140
-78
-Population
-Population
-5
-200
-200.0
-5
-1
-NIL
-HORIZONTAL
-
-PLOT
-365
-10
-645
+BUTTON
+290
 130
-Fitness
-gen #
-fitness
-0.0
-20.0
-0.0
-101.0
-true
-false
-"" ""
-PENS
-"best" 1.0 0 -2674135 true "" ""
-"mean" 1.0 0 -10899396 true "" ""
-"worst" 1.0 0 -13345367 true "" ""
-
-SLIDER
-10
-115
-140
-148
-mutation-ratio
-mutation-ratio
-0
-50
-14.8
-0.1
-1
+357
+163
 NIL
-HORIZONTAL
+cycle
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
-PLOT
+BUTTON
 365
 130
-645
-250
-Diversity
-gen #
-diversidad
-0.0
-20.0
-0.0
-1.0
-true
-false
-"" ""
-PENS
-"diversity" 1.0 0 -8630108 true "" ""
-
-SWITCH
-10
-150
-140
-183
-plot-diversity?
-plot-diversity?
-0
+432
+163
+cycle
+cycle\nwait 2
+T
 1
--1000
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
-SLIDER
-10
-80
-140
-113
-crossover-ratio
-crossover-ratio
-0
+BUTTON
 100
-79.0
+130
+163
+163
+NIL
+go
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+SLIDER
+25
+75
+430
+108
+population
+population
+0
+1000
+800.0
 1
 1
 NIL
 HORIZONTAL
 
 PLOT
-655
-10
-855
-160
-f(x)
+20
+255
+440
+445
+Heights
 NIL
 NIL
 0.0
-1.0
+10.0
 0.0
 1.0
+true
+true
+"" ""
+PENS
+"max" 1.0 0 -14333415 true "" "plot max [height] of turtles"
+"min" 1.0 0 -10873583 true "" "plot min [height] of turtles"
+"mean" 1.0 0 -16777216 true "" "plot mean [height] of turtles"
+
+PLOT
+25
+480
+440
+630
+plot 1
+NIL
+NIL
+0.0
+1.05
+0.0
+1000.0
 true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" ""
+"default" 0.05 1 -16777216 true "" "histogram [ height ] of turtles"
 
 @#$#@#$#@
+## WHAT IS IT?
+
+(a general understanding of what the model is trying to show or explain)
+
+## HOW IT WORKS
+
+(what rules the agents use to create the overall behavior of the model)
+
+## HOW TO USE IT
+
+(how to use the model, including a description of each of the items in the Interface tab)
+
+## THINGS TO NOTICE
+
+(suggested things for the user to notice while running the model)
+
+## THINGS TO TRY
+
+(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+
+## EXTENDING THE MODEL
+
+(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+
+## NETLOGO FEATURES
+
+(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
+
+## RELATED MODELS
+
+(models in the NetLogo Models Library and elsewhere which are of related interest)
+
+## CREDITS AND REFERENCES
+
+(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
 @#$#@#$#@
 default
 true
@@ -307,30 +303,6 @@ Circle -16777216 true false 30 180 90
 Polygon -16777216 true false 162 80 132 78 134 135 209 135 194 105 189 96 180 89
 Circle -7500403 true true 47 195 58
 Circle -7500403 true true 195 195 58
-
-chess queen
-false
-0
-Circle -7500403 true true 140 11 20
-Circle -16777216 false false 139 11 20
-Circle -7500403 true true 120 22 60
-Circle -16777216 false false 119 20 60
-Rectangle -7500403 true true 90 255 210 300
-Line -16777216 false 75 255 225 255
-Rectangle -16777216 false false 90 255 210 300
-Polygon -7500403 true true 105 255 120 90 180 90 195 255
-Polygon -16777216 false false 105 255 120 90 180 90 195 255
-Rectangle -7500403 true true 105 105 195 75
-Rectangle -16777216 false false 105 75 195 105
-Polygon -7500403 true true 120 75 105 45 195 45 180 75
-Polygon -16777216 false false 120 75 105 45 195 45 180 75
-Circle -7500403 true true 180 35 20
-Circle -16777216 false false 180 35 20
-Circle -7500403 true true 140 35 20
-Circle -16777216 false false 140 35 20
-Circle -7500403 true true 100 35 20
-Circle -16777216 false false 99 35 20
-Line -16777216 false 105 90 195 90
 
 circle
 false
@@ -468,6 +440,22 @@ Polygon -7500403 true true 135 105 90 60 45 45 75 105 135 135
 Polygon -7500403 true true 165 105 165 135 225 105 255 45 210 60
 Polygon -7500403 true true 135 90 120 45 150 15 180 45 165 90
 
+sheep
+false
+15
+Circle -1 true true 203 65 88
+Circle -1 true true 70 65 162
+Circle -1 true true 150 105 120
+Polygon -7500403 true false 218 120 240 165 255 165 278 120
+Circle -7500403 true false 214 72 67
+Rectangle -1 true true 164 223 179 298
+Polygon -1 true true 45 285 30 285 30 240 15 195 45 210
+Circle -1 true true 3 83 150
+Rectangle -1 true true 65 221 80 296
+Polygon -1 true true 195 285 210 285 210 240 240 210 195 210
+Polygon -7500403 true false 276 85 285 105 302 99 294 83
+Polygon -7500403 true false 219 85 210 105 193 99 201 83
+
 square
 false
 0
@@ -552,15 +540,21 @@ Line -7500403 true 40 84 269 221
 Line -7500403 true 40 216 269 79
 Line -7500403 true 84 40 221 269
 
+wolf
+false
+0
+Polygon -16777216 true false 253 133 245 131 245 133
+Polygon -7500403 true true 2 194 13 197 30 191 38 193 38 205 20 226 20 257 27 265 38 266 40 260 31 253 31 230 60 206 68 198 75 209 66 228 65 243 82 261 84 268 100 267 103 261 77 239 79 231 100 207 98 196 119 201 143 202 160 195 166 210 172 213 173 238 167 251 160 248 154 265 169 264 178 247 186 240 198 260 200 271 217 271 219 262 207 258 195 230 192 198 210 184 227 164 242 144 259 145 284 151 277 141 293 140 299 134 297 127 273 119 270 105
+Polygon -7500403 true true -1 195 14 180 36 166 40 153 53 140 82 131 134 133 159 126 188 115 227 108 236 102 238 98 268 86 269 92 281 87 269 103 269 113
+
 x
 false
 0
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.0.1
 @#$#@#$#@
-need-to-manually-make-preview-for-this-model
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

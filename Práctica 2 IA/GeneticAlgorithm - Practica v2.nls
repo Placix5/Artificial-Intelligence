@@ -95,13 +95,14 @@ to-report AI:PointCrossover [c1 c2]
   let beta random-float 1
   
   ;Punto de cruce
-  let index (random (length c1))
+  let index 0
+  while[index <= 0][set index (random (length c1))]
   
   let p1n ((item index c2) - beta * ((item index c2) - (item index c1))) ; Nuevo gen en punto de corte
   let p2n ((item index c1) - beta * ((item index c1) - (item index c2))) ; Nuevo gen en punto de corte
   
-  let h1 sublist c1 0 (index - 1) ; Cromosoma hijo1
-  let h2 sublist c2 0 (index - 1) ; Cromosoma hijo2
+  let h1 sublist c1 0 index ; Cromosoma hijo1
+  let h2 sublist c2 0 index ; Cromosoma hijo2
   
   set h1 (lput p1n h1)
   set h2 (lput p2n h2)
@@ -236,5 +237,5 @@ end
 ; Hamming Distance between two lists is the proportion of positions they 
 ; differ.
 to-report hamming-distance [c1 c2]
-  report (length remove true (map [[x1 x2] -> x1 = x2] c1 c2)) / (length c1)
+  report (length remove true (map [[x1 x2] -> x1 = x2 ] c1 c2)) / (length c1)
 end
