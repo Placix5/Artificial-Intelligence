@@ -1,16 +1,32 @@
+extensions [ landscapes ]
+
 ; ------------------- Include Genetic Algorithm Module --------------------
 
 __includes ["ContinuousGeneticAlgorithm.nls"]
 
 ; --------------------------- Main procedures calling ---------------------
 
-to-report ftest [x]
-  report x ^ 2 - .5
-end
+patches-own [
+  height
+]
 
+turtles-own [
+  peak? ; indicates whether a turtle has reached a "peak",
+        ; that is, it can no longer go "uphill" from where it stands
+]
 
 to Setup
   ca
+  landscapes:generate landscape "height"
+  ask patches [ set pcolor scale-color grey height 0 1 ]
+  ; put some turtles on patch centers in the landscape
+  ask n-of population patches [
+    sprout 1 [
+      set peak? false
+      set color [ 255 0 0 25 ]
+      pen-down
+    ]
+  ]
   AI:Initial-Population population
   AI:ExternalUpdate
   plots
@@ -26,10 +42,11 @@ end
 ; Create Initial Population
 ; It depends on the problem to be solved as it uses a concrete representation
 to AI:Initial-Population [#population]
+
   create-AI:individuals #population [
-    set content (list (precision (random-float 1) 5)(precision (random-float 1) 5))
+    set content (list random-xcor random-ycor)
     AI:Compute-fitness
-    hide-turtle
+    ;hide-turtle
   ]
 end
 
@@ -39,12 +56,12 @@ to AI:Compute-fitness
   let x (first content)
   let y (last content)
 
-  ;set fitness (x * sin(4 * x) + 1.1 * y * sin(2 * y))
-  set fitness (x * 5) ^ 2 + (y * 2) ^ 5
+  set xcor x
+  set ycor y
+
+  set fitness ([height] of patch-here)
 
 end
-
-
 
 ; Crossover procedure
 ; It takes content from two parents and returns a list with two contents.
@@ -52,6 +69,7 @@ end
 ; cut both contents and mix them:
 ; a1|a2, b1|b2, where long(ai)=long(bi)
 ; and report: a1|b2, b1|a2
+
 to-report AI:CustomCrossover [c1 c2]
   let cut-point 1 + random (length c1 - 1)
   report list (sentence (sublist c1 0 cut-point)
@@ -69,7 +87,6 @@ to-report AI:CustomSelection [old-generation]
 
 end
 
-
 ; Mutation procedure
 ; Random mutation of units of the content.
 ; Individual procedure
@@ -77,44 +94,35 @@ to AI:CustomMutate [#mutation-ratio]
   set content map [x -> ifelse-value (random-float 100.0 < #mutation-ratio) [x] [x]] content
 end
 
-to limpia
-  let c0 (list "0" [[x1 x2] -> 0])
-  let c1 (list "1" [[x1 x2] -> 1])
-  let c2 (list "2" [[x1 x2] -> 2])
-  let c3 (list "3" [[x1 x2] -> 3])
-  let c4 (list "4" [[x1 x2] -> 4])
-  let c5 (list "5" [[x1 x2] -> 5])
-  let c6 (list "6" [[x1 x2] -> 6])
-  let c7 (list "7" [[x1 x2] -> 7])
-  let c8 (list "8" [[x1 x2] -> 8])
-  let c9 (list "9" [[x1 x2] -> 9])
-  let ctes (list c0 c1 c2 c3 c4 c5 c6 c7 c8 c9)
-  foreach ctes [ x ->
-    if member? x content [
-      let p position x content
-      set content sublist content 0 (p + 1)
+; Auxiliary procedure to be executed in every iteration of the main loop.
+; Usually to show or update some information.
+
+to AI:ExternalUpdate
+
+  ask AI:individuals [
+    let x (first content)
+    let y (last content)
+
+    ;set xcor x
+    ;set ycor y
+
+    ; remember where we started
+    let old-patch patch-here
+    if old-patch = patch-here [
+      set shape "target"
+      set color ifelse-value (height = 1) [ lime ] [ cyan ]
+      set size height * 5
     ]
   ]
-end
-; Auxiliary procedure to be executed in every iteration of the main loop.
-; Usually to show or update some information.
-; Auxiliary procedure to be executed in every iteration of the main loop.
-; Usually to show or update some information.
-to AI:ExternalUpdate
-  let best max-one-of AI:individuals [fitness]
-  ask patches [
-    ifelse ((item 0 ([content] of best)) <= 1 and (item 0 ([content] of best)) >= 0.5)
-      [ set pcolor white ]
-      [ set pcolor black ]
-  ]
   plots
+  wait 0.25
   display
 end
 
 ;; ====== Plotting
 
 to plots
-  let lista-fitness [fitness] of turtles
+  let lista-fitness [fitness] of AI:individuals
   let mejor-fitness max lista-fitness
   let media-fitness mean lista-fitness
   let peor-fitness min lista-fitness
@@ -136,11 +144,11 @@ end
 GRAPHICS-WINDOW
 145
 10
-353
-219
+756
+622
 -1
 -1
-20.0
+3.0
 1
 10
 1
@@ -150,10 +158,10 @@ GRAPHICS-WINDOW
 1
 1
 1
-0
-9
-0
-9
+-100
+100
+-100
+100
 0
 0
 1
@@ -210,9 +218,9 @@ NIL
 HORIZONTAL
 
 PLOT
-570
+770
 10
-850
+1050
 130
 Fitness
 gen #
@@ -220,7 +228,7 @@ fitness
 0.0
 20.0
 0.0
-101.0
+10.0
 true
 false
 "" ""
@@ -238,16 +246,16 @@ mutation-ratio
 mutation-ratio
 0
 50
-18.7
+14.8
 0.1
 1
 NIL
 HORIZONTAL
 
 PLOT
-570
+770
 130
-850
+1050
 250
 Diversity
 gen #
@@ -282,40 +290,50 @@ crossover-ratio
 crossover-ratio
 0
 100
-50.0
+67.0
 1
 1
 NIL
 HORIZONTAL
 
 CHOOSER
-360
-10
-565
-55
+930
+305
+1075
+350
 Crossover
 Crossover
 "UniformCrossover" "PointCrossover" "2PointCrossover" "CustomCrossover"
 1
 
 CHOOSER
-360
-55
-565
-100
+770
+305
+932
+350
 Selection
 Selection
 "Tekken" "Elitist" "ProportionalAptitude" "RandomSelection" "CustomSelection"
-3
+0
 
 CHOOSER
-360
-100
-565
-145
+770
+350
+930
+395
 Mutate
 Mutate
 "BasicMutate" "RandomMutate" "SMMutate" "ModesMutate" "ReverseMutate" "CustomMutate"
+2
+
+CHOOSER
+770
+260
+1075
+305
+landscape
+landscape
+"3 POT HOLES" "ACKLEY'S FUNCTION" "ACKLEY'S PATH FUNCTION 10" "AXIS PARALLEL HYPER-ELLIPSOID FUNCTION" "BOHACHEVSKY'S FUNCTION" "BRANINS'S RCOS FUNCTION" "CPF1" "CPF2" "DE JONG F1" "EASOM'S FUNCTION" "EUCLIDEAN" "EXP" "F1" "F2" "F3" "F4 (PSHUBERT1)" "F5 (PSHUBERT2)" "F6 (QUARTIC)" "F7 (SHUBERT FUNCTION)" "FLAT" "G1" "G2" "G3" "GENERALIZED GRIEWANK FUNCTION" "GENERALIZED HIMMELBLAU'S FUNCTION" "GENERALIZED PENALIZED FUNCTION 1" "GENERALIZED PENALIZED FUNCTION 2" "GENERALIZED RASTRIGIN'S FUNCTION" "GENERALIZED ROSENBROCK'S FUNCTION" "GENERALIZED SCHWEFELS PROBLEM 2.26" "GOLDSTEIN-PRICE'S FUNCTION" "GRIEWANGK'S FUNCTION 8" "HANSENS FUNCTION" "HORN'S FMMEASY" "HORNS 5 PEAKS (MODIFIED)" "LANGERMANN'S FUNCTION 11 (M=4)" "LANGERMANN'S FUNCTION 11 (M=7)" "M1" "M2" "M3" "M4" "M5 (HIMMELBLAU'S FUNCTION)" "M6 (SHEKEL'S FOXHOLES)" "MICHALEWICZ'S FUNCTION 12" "MOVED AXIS PARALLEL HYPER-ELLIPSOID FUNCTION" "MULTI FUNCTION" "PEAKS" "QUARTIC FUNCTION (NOISE)" "RASTRIGIN'S FUNCTION 6" "RIPPLES" "ROOTS" "ROSENBROCK'S VALLEY (DE JONG F2)" "ROTATED HYPER-ELLIPSOID FUNCTION" "SCHAFFER'S FUNCTION" "SCHWEFEL'S FUNCTION 7" "SCHWEFEL'S PROBLEM 1.2" "SCHWEFEL'S PROBLEM 2.21" "SCHWEFEL'S PROBLEM 2.22" "SHUBERT FUNCTION" "SIX-HUMP CAMEL BACK FUNCTION" "SPHERE" "SQUASHED FROG FUNCTION (TIMBO)" "STEP FUNCTION" "SUM OF DIFFERENT POWER FUNCTION" "TEST FUNCTION F1" "TEST FUNCTION F2 (ROSENBROCK'S FUNCTION)" "TEST FUNCTION F3" "TEST FUNCTION F4 (QUARTIC FUNCTION)" "TEST FUNCTION F5 (SHEKEL'S FUNCTION)"
 0
 
 @#$#@#$#@

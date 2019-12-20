@@ -37,25 +37,27 @@ to AI:Create-next-generation [#population #crossover-ratio #mutation-ratio]
   repeat number-crossovers
   [
 
-    let fathers []
+    let parents []
     let content-child []
     
     (ifelse
-      selSelecction = 1 [set fathers (AI:Tekken old-generation)]
-      selSelecction = 2 [set fathers (AI:Elitist old-generation)]
-      selSelecction = 3 [set fathers (AI:CustomSelecction old-generation)]
+      Selection = "Tekken" [set parents (AI:Tekken old-generation)]
+      Selection = "Elitist" [set parents (AI:Elitist old-generation)]
+      Selection = "ProportionalAptitude" [set parents (AI:ProportionalAptitude old-generation)]
+      Selection = "RandomSelection" [set parents (AI:RandomSelection old-generation)]
+      Selection = "CustomSelection" [set parents (AI:CustomSelection old-generation)]
     )
     
     (ifelse
-      selCrossover = 1 [set content-child (AI:UniformCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
-      selCrossover = 2 [set content-child (AI:PointCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
-      selCrossover = 3 [set content-child (AI:2PointCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
-      selCrossover = 4 [set content-child (AI:CustomCrossover ([content] of (first fathers)) ([content] of (last fathers)))]
+      Crossover = "UniformCrossover" [set content-child (AI:UniformCrossover ([content] of (first parents)) ([content] of (last parents)))]
+      Crossover = "PointCrossover" [set content-child (AI:PointCrossover ([content] of (first parents)) ([content] of (last parents)))]
+      Crossover = "2PointCrossover" [set content-child (AI:2PointCrossover ([content] of (first parents)) ([content] of (last parents)))]
+      Crossover = "CustomCrossover" [set content-child (AI:CustomCrossover ([content] of (first parents)) ([content] of (last parents)))]
     )
 
     ; From 2 parents we create 2 children
-    ask (first fathers) [ hatch-AI:individuals 1 [ set content item 0 content-child ] ]
-    ask (last fathers) [ hatch-AI:individuals 1 [ set content item 1 content-child ] ]
+    ask (first parents) [ hatch-AI:individuals 1 [ set content item 0 content-child ] ]
+    ask (last parents) [ hatch-AI:individuals 1 [ set content item 1 content-child ] ]
   ]
 
   ; The rest of pool will be cloned directly from good individuals of the
@@ -73,9 +75,12 @@ to AI:Create-next-generation [#population #crossover-ratio #mutation-ratio]
   ask AI:individuals
   [
     (ifelse
-      selMutate = 1 [AI:BasicMutate #mutation-ratio]
-      selMutate = 2 [AI:RandomMutate #mutation-ratio]
-      selMutate = 3 [AI:CustomMutate #mutation-ratio]
+      Mutate = "BasicMutate" [AI:BasicMutate #mutation-ratio]
+      Mutate = "RandomMutate" [AI:RandomMutate #mutation-ratio]
+      Mutate = "SMMutate" [AI:SMMutate #mutation-ratio]
+      Mutate = "ModesMutate" [AI:ModesMutate #mutation-ratio]
+      Mutate = "ReverseMutate" [AI:ReverseMutate #mutation-ratio]
+      Mutate = "CustomMutate" [AI:CustomMutate #mutation-ratio]
     )
     
     AI:Compute-fitness
@@ -180,6 +185,36 @@ to AI:RandomMutate [#mutation-ratio]
   set content map [p -> ifelse-value(random-float 100.0 < #mutation-ratio)[random-float 1][p]] content
   
 end
+
+; AI:SMMutate hace una mutación básica, crea un número aleatorio y lo compara
+; con mutation-ratio, en el caso en el que sea más pequeño, cambia el gen por otro gen elegido al azar,
+; en el caso en el que no lo sea, el gen se queda igual 
+
+to AI:SMMutate [#mutation-ratio]
+  
+  set content map [p -> ifelse-value(random-float 100.0 < #mutation-ratio)[item (random length content)content][p]] content
+  
+end
+
+; AI:ModesMutate hace una mutación básica, crea un número aleatorio y lo compara
+; con mutation-ratio, en el caso en el que sea más pequeño, cambia el gen por la moda del contenido,
+; en el caso en el que no lo sea, el gen se queda igual 
+
+to AI:ModesMutate [#mutation-ratio]
+  
+  let moda modes content
+  set content map [p -> ifelse-value(random-float 100.0 < #mutation-ratio)[item 0 moda][p]] content
+  
+end
+
+; AI:ReverseMutate hace una mutación invirtiendo el orden de los genes
+
+to AI:ReverseMutate [#mutation-ratio]
+  
+  set content reverse content
+  
+end
+
 ;---------------------------------------------------------------------------------
 ; Funciones de selección de próxima población
 
@@ -203,9 +238,48 @@ end
 
 to-report AI:Elitist[old-generation]
   
-  let father1 max-one-of (old-generation) [fitness] ; Padre1
-  let father2 max-one-of (old-generation) [fitness] ; Padre2
+  let parents []
+  let aux (max-n-of 2 (old-generation) [fitness])
+  foreach (sort-on [fitness] aux ) [t -> set parents (lput t parents)]
   
+  report parents
+  
+end
+
+; AI:Proporcional obtiene una probabilidad de selección en función del valor de su función de fitness,
+; posteriormente selecciona, por lo que los que los cromosomas con mejores resultados tienen mayores
+; posibilidades de resultar elegidos
+
+to-report AI:ProportionalAptitude [old-generation]
+  
+  let parents [] ; Lista de padres    
+  let suma-total sum [fitness] of old-generation
+  
+  while[length (parents) < 2][
+
+    foreach (sort-on [who] old-generation) [ t ->
+      if(random-float 100.0 < ([fitness] of t) * 100 / suma-total)[set parents (lput t parents)]
+    ]
+    
+  ]
+  
+  set parents (n-of 2 parents) ; Selección de dos cromosomas aleatorios que han pasado la prueba
+  report parents
+  
+end
+
+; AI:RandomSelection obtiene dos padres totalmente aleatorios 
+
+to-report AI:RandomSelection [old-generation]
+  
+  let father1 0
+  let father2 0
+  
+  while[father1 = father2][
+    set father1 one-of old-generation
+    set father2 one-of old-generation
+  ]
+    
   report (list father1 father2)
   
 end
