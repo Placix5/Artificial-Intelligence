@@ -5,6 +5,12 @@ __includes["DF.nls"]
 globals [
   clases
   DataFrame ; Dataframe to work
+  GlobalDataFrame
+  CondensedDataFrame
+  ReducedDataFrame
+
+  mostrado?
+
   lsColors
 ]
 
@@ -49,8 +55,10 @@ to load-DF
     ; Print the dataset
     output-print "Original Dataset:"
     output-print DF:output DataFrame
+
+    set DataFrame (remove (first DataFrame) DataFrame)
+    set GlobalDataFrame DataFrame
   ]
-  set DataFrame (remove (first DataFrame) DataFrame)
 
 end
 
@@ -60,6 +68,12 @@ to setup
 
   clear-patches
   resize-world 0 Tamx 0 TamY
+
+  set mostrado? false
+
+  set DataFrame map[x -> (list item (ColumnaX) x item (ColumnaY) x item (ColumnaRes) x)]GlobalDataFrame
+  set CondensedDataFrame []
+  set ReducedDataFrame []
   foreach DataFrame[ r ->
     ask patches with [pxcor = (item 0 r) and pycor = (item 1 r)][
       set pcolor ((item 2 r) * 10 + 45)
@@ -129,9 +143,11 @@ end
 
 to aplicaCondensacion
 
-  let DatosCondensados []
+ if(mostrado?)[setup]
 
-  foreach DataFrame [ d ->
+ let DatosCondensados []
+
+ foreach DataFrame [ d ->
     ifelse(length(DatosCondensados) = 0)[set DatosCondensados (lput d DatosCondensados)]
     [if(not ((K-NN DatosCondensados (item 0 d) (item 1 d) FALSE) = item 2 d))[set DatosCondensados (lput d DatosCondensados)]]
 
@@ -140,10 +156,24 @@ to aplicaCondensacion
   ]
 
   KNNCondensado DatosCondensados
+  set CondensedDataFrame DatosCondensados
+
   print "Los datos usados inicialmente son: "
   print DataFrame
   print "Los datos usados finalmente son: "
-  print DatosCondensados
+  print CondensedDataFrame
+
+end
+
+to muestraCondensacion
+
+  set mostrado? true
+  let DatosExcluidos filter [x -> not member? x CondensedDataFrame]DataFrame
+  ask patches [set pcolor black]
+
+  foreach DatosExcluidos [d ->
+    ask patches with [pxcor = item 0 d and pycor = item 1 d][set pcolor red]
+  ]
 
 end
 
@@ -152,6 +182,8 @@ end
 
 to aplicaReduccion
 
+  if(mostrado?)[setup]
+
   let DatosReducidos DataFrame
 
   foreach DataFrame [ d ->
@@ -159,10 +191,24 @@ to aplicaReduccion
   ]
 
   KNNReducido DatosReducidos
+  set ReducedDataFrame DatosReducidos
+
   print "Los datos usados inicialmente son: "
   print DataFrame
   print "Los datos usados finalmente son: "
   print DatosReducidos
+
+end
+
+to muestraReduccion
+
+  set mostrado? true
+  let DatosExcluidos filter [x -> not member? x ReducedDataFrame]DataFrame
+  ask patches [set pcolor black]
+
+  foreach DatosExcluidos [d ->
+    ask patches with [pxcor = item 0 d and pycor = item 1 d][set pcolor red]
+  ]
 
 end
 @#$#@#$#@
@@ -226,7 +272,7 @@ k
 k
 0
 10
-5.0
+4.0
 1
 1
 NIL
@@ -320,6 +366,73 @@ BUTTON
 208
 NIL
 aplicaReduccion
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+INPUTBOX
+0
+208
+170
+268
+ColumnaX
+0.0
+1
+0
+Number
+
+INPUTBOX
+0
+268
+170
+328
+ColumnaY
+1.0
+1
+0
+Number
+
+INPUTBOX
+0
+328
+170
+388
+ColumnaRes
+4.0
+1
+0
+Number
+
+BUTTON
+0
+388
+170
+421
+NIL
+muestraCondensacion
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+0
+421
+170
+454
+NIL
+muestraReduccion
 NIL
 1
 T
