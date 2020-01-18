@@ -1,10 +1,12 @@
 extensions [ CSV ]
 
-__includes["DF.nls"]
+__includes["DF.nls" "GeneticAlgorithm.nls"]
 
 globals [
   clases
+  DataSet
   DataFrame ; Dataframe to work
+
   GlobalDataFrame
   CondensedDataFrame
   ReducedDataFrame
@@ -50,14 +52,13 @@ to load-DF
   ca
   ask patches [set pcolor white]
   ; Read the dataset file
-  set DataFrame DF:load user-file
-  if DataFrame != false [
+  set DataSet DF:load user-file
+  if DataSet != false [
     ; Print the dataset
     output-print "Original Dataset:"
-    output-print DF:output DataFrame
+    output-print DF:output DataSet
 
-    set DataFrame (remove (first DataFrame) DataFrame)
-    set GlobalDataFrame DataFrame
+    set DataSet (remove (first DataSet) DataSet)
   ]
 
 end
@@ -67,16 +68,36 @@ end
 to setup
 
   clear-patches
+  clear-plot
   resize-world 0 Tamx 0 TamY
 
   set mostrado? false
+  set DataFrame sublist DataSet 0 ((length DataSet) * PorcentajeEntrenamiento / 100)
+  set GlobalDataFrame DataFrame
 
-  set DataFrame map[x -> (list item (ColumnaX) x item (ColumnaY) x item (ColumnaRes) x)]GlobalDataFrame
+  ;set-patch-size 5
+
+  ;set DataFrame map[x -> (list item (ColumnaX) x item (ColumnaY) x item (ColumnaRes) x)]GlobalDataFrame
   set CondensedDataFrame []
   set ReducedDataFrame []
+
+  let normX 1
+  let normY 1
+
+  if(normalizeX?)[
+    let normXLs map[datax -> item ColumnaX datax]DataFrame
+    set normX max normXLs
+    set normX (normX / TamX)
+  ]
+  if(normalizeY?)[
+    let normYLs map[ datay -> item ColumnaY datay]DataFrame
+    set normY max normYLs
+    set normY (normY / TamY)
+  ]
+
   foreach DataFrame[ r ->
-    ask patches with [pxcor = (item 0 r) and pycor = (item 1 r)][
-      set pcolor ((item 2 r) * 10 + 45)
+    ask patches with [pxcor = round ((item ColumnaX r) / normX ) and pycor = round ((item ColumnaY r) / normY)][
+      set pcolor ((last r) * 10 + 45)
     ]
   ]
 
@@ -88,32 +109,46 @@ to setup
 
 end
 
-; aplicaKNN se encarga de aplicar el algoritmo KNN a todo el mapa de puntos
+to test
 
-to aplicaKNN
+  let DataTrain filter[x -> not member? x DataFrame]DataSet
+  let ClasifiedData []
 
-  let coordenadas map[d -> (list item 0 d item 1 d)] DataFrame
-  ask patches with [not member? (list pxcor pycor) coordenadas][set pcolor (K-NN DataFrame pxcor pycor TRUE) * 10 + 45]
+  (ifelse
+    DataSelect = "DataFrame" [set ClasifiedData map[x -> (list x ((K-NNGen DataFrame but-last x TRUE k)))]DataTrain]
+    DataSelect = "CondensedDataFrame" [set ClasifiedData map[x -> (list x ((K-NNGen CondensedDataFrame but-last x TRUE k)))]DataTrain]
+    DataSelect = "ReducedDataFrame" [set ClasifiedData map[x -> (list x ((K-NNGen ReducedDataFrame but-last x TRUE k)))]DataTrain]
+  )
+
+  let correct 0
+  let wrong 0
+
+  foreach ClasifiedData[ d -> ifelse(last d = last(first d))[set correct (correct + 1)][set wrong (wrong + 1)]]
+  print (word "El porcentaje de acierto es de: " (correct / (length DataTrain) * 100))
+  print (word "El porcentaje de fallo es de: " (wrong / (length DataTrain) * 100))
 
 end
 
-; KNNCondensado se encarga de aplicar el algoritmo KNN con la técnica de condensación previamente
-; aplicada a los elementos del dataset a todo el mapa de puntos
+to searchBestK
 
-to KNNCondensado [DatosCondensados]
+  let bestKls []
 
-  let coordenadas map[d -> (list item 0 d item 1 d)] DatosCondensados
-  ask patches with [not member? (list pxcor pycor) coordenadas][set pcolor (K-NN DatosCondensados pxcor pycor TRUE) * 10 + 45]
+  repeat 3 [
+  AI:Initial-Population population
+  let bestk AI:GeneticAlgorithm 100 Population crossover-ratio mutation-ratio
+  set bestKls (lput first ([content] of bestk) bestKls)
+  ]
+  print (word "La mejor K para el DataSet especificado es: " first (modes bestKls))
 
 end
 
-; KNNReducido se encarga de aplicar el algoritmo KNN con la técnica de reducción previamente
-; aplicada a los elementos del dataset a todo el mapa de puntos
+; muestraKNN se encarga de aplicar el algoritmo KNN a los datos que se le pasa como parámetro
+; y los representa en el mundo usando los patches
 
-to KNNReducido [DatosReducidos]
+to muestraKNN [Data]
 
-  let coordenadas map[d -> (list item 0 d item 1 d)] DatosReducidos
-  ask patches with [not member? (list pxcor pycor) coordenadas][set pcolor (K-NN DatosReducidos pxcor pycor TRUE) * 10 + 45]
+  let coordenadas map[d -> (list item ColumnaX d item ColumnaY d)] Data
+  ask patches with [not member? (list pxcor pycor) coordenadas][set pcolor (K-NN Data pxcor pycor TRUE k) * 10 + 45]
 
 end
 
@@ -122,19 +157,60 @@ end
 ; Además, la variable k? la usamos para definir si queremos usar los k vecinos más cercanos o todos los puntos que hay en el dataset,
 ; esto es así ya que en la técnica de la condensación debemos usar todos los vecinos y puede entrar en conflicto con la k que haya establecido el usuario
 
-to-report K-NN [df x y k?]
+to-report K-NN [df x y k? K-User]
 
   let c 0
   let vecinos []
   let coloresVecinos []
 
-  let distancias sort-by [[p1 p2] -> sqrt(((item 0 p1) - x) ^ 2 + ((item 1 p1) - y) ^ 2) < sqrt(((item 0 p2) - x) ^ 2 + ((item 1 p2) - y) ^ 2) ] df
+  let normX 1
+  let normY 1
+  if(normalizeX?)[
+    let normXLs map[datax -> first datax]df
+    set normX max normXLs
+    set normX (normX / TamX)
+  ]
+  if(normalizeY?)[
+    let normYLs map[ datay -> last datay]df
+    set normY max normYLs
+    set normY (normY / TamY )
+  ]
+
+  let distancias sort-by [[p1 p2] -> sqrt((((item 0 p1) / normX) - x) ^ 2 + (((item 1 p1) / normY ) - y) ^ 2) < sqrt((((item 0 p2) / normX ) - x) ^ 2 + (((item 1 p2) / normY ) - y) ^ 2) ] df
   ;print distancias
 
-  ifelse(k?)[set vecinos (sublist distancias 0 k)][set vecinos (sublist distancias 0 (length(df)))]
+  ifelse(k? and length(distancias) > K-User)[set vecinos (sublist distancias 0 k)][set vecinos (sublist distancias 0 (length(df)))]
   foreach vecinos[ v -> set coloresVecinos (lput (item 2 v) coloresVecinos)]
 
   report first (modes coloresVecinos)
+
+end
+
+; K-NNGen es el KNN pero generalizado
+
+to-report K-NNGen [df coord k? K-User]
+
+  let c 0
+  let vecinos []
+  let coloresVecinos []
+
+  let distancias sort-by [[p1 p2] -> sqrt(sum(map[[d1 dc] -> (d1 - dc) ^ 2](but-last p1) coord)) < sqrt(sum (map[[d2 dc] -> (d2 - dc) ^ 2](but-last p2) coord))] df
+  ;let distancias sort-by [[p1 p2] -> sqrt(((item 0 p1) - x) ^ 2 + ((item 1 p1) - y) ^ 2) < sqrt(((item 0 p2) - x) ^ 2 + ((item 1 p2) - y) ^ 2) ] df
+
+  ;ifelse(k?)[ifelse(k-Genetic = 0)[set vecinos (sublist distancias 0 K-User)][set vecinos (sublist distancias 0 K-Genetic)]][set vecinos (sublist distancias 0 (length(df)))]
+  ifelse(k?)[set vecinos (sublist distancias 0 K-User)][set vecinos (sublist distancias 0 (length(df)))]
+  foreach vecinos[ v -> set coloresVecinos (lput (item 2 v) coloresVecinos)]
+
+  report first (modes coloresVecinos)
+
+end
+
+
+; aplicaKNN se encarga de aplicar el algoritmo KNN a todo el mapa de puntos
+
+to aplicaKNN
+
+  muestraKNN DataFrame
 
 end
 
@@ -149,13 +225,13 @@ to aplicaCondensacion
 
  foreach DataFrame [ d ->
     ifelse(length(DatosCondensados) = 0)[set DatosCondensados (lput d DatosCondensados)]
-    [if(not ((K-NN DatosCondensados (item 0 d) (item 1 d) FALSE) = item 2 d))[set DatosCondensados (lput d DatosCondensados)]]
+    [if(not ((K-NNGen DatosCondensados (but-last d) FALSE k) = last d))[set DatosCondensados (lput d DatosCondensados)]]
 
     let coordenadas map[c -> (list item 0 c item 1 c)] DatosCondensados
-    ask patches with [not member? (list pxcor pycor) coordenadas][set pcolor (K-NN DatosCondensados pxcor pycor FALSE) * 10 + 45]
+    ask patches with [not member? (list pxcor pycor) coordenadas][set pcolor (K-NN DatosCondensados pxcor pycor FALSE k) * 10 + 45]
   ]
 
-  KNNCondensado DatosCondensados
+  muestraKNN DatosCondensados
   set CondensedDataFrame DatosCondensados
 
   print "Los datos usados inicialmente son: "
@@ -187,10 +263,10 @@ to aplicaReduccion
   let DatosReducidos DataFrame
 
   foreach DataFrame [ d ->
-    if ((K-NN DatosReducidos (item 0 d) (item 1 d) FALSE) = item 2 d)[set DatosReducidos (remove d DatosReducidos)]
+    if ((K-NNGen DatosReducidos (but-last d) FALSE k) = last d)[if(length(DatosReducidos) > k)[set DatosReducidos (remove d DatosReducidos)]]
   ]
 
-  KNNReducido DatosReducidos
+  muestraKNN DatosReducidos
   set ReducedDataFrame DatosReducidos
 
   print "Los datos usados inicialmente son: "
@@ -211,15 +287,165 @@ to muestraReduccion
   ]
 
 end
+
+; ----------------------------------------------------------------------------SEARCHING BEST PARAMETERS-------------------------------------------------------------------------------
+
+to AI:Initial-Population [#population]
+
+  create-AI:individuals #population [
+
+  set content (list 0)
+
+  (ifelse
+    DataSelect = "DataFrame" [while[first content = 0][ifelse(length(DataFrame) < 10)[set content (list random(length(DataFrame)))][set content (list random(10))]]]
+    DataSelect = "CondensedDataFrame" [while[first content = 0][ifelse(length(CondensedDataFrame) < 10)[set content (list random(length(CondensedDataFrame)))][set content (list random(10))]]]
+    DataSelect = "ReducedDataFrame" [while[first content = 0][ifelse(length(ReducedDataFrame) < 10)[set content (list random(length(ReducedDataFrame)))][set content (list random(10))]]]
+  )
+    AI:Compute-fitness
+    hide-turtle
+  ]
+
+end
+
+to AI:Compute-fitness
+
+  let DataTrain filter[x -> not member? x DataFrame]DataSet
+  let ClasifiedData []
+
+  (ifelse
+    DataSelect = "DataFrame" [set ClasifiedData map[x -> (list x ((K-NNGen DataFrame but-last x TRUE (first content))))]DataTrain]
+    DataSelect = "CondensedDataFrame" [set ClasifiedData map[x -> (list x ((K-NNGen CondensedDataFrame but-last x TRUE (first content))))]DataTrain]
+    DataSelect = "ReducedDataFrame" [set ClasifiedData map[x -> (list x ((K-NNGen ReducedDataFrame but-last x TRUE (first content))))]DataTrain]
+  )
+
+  let correct 0
+  let wrong 0
+
+  foreach ClasifiedData[ d -> ifelse(last d = last(first d))[set correct (correct + 1)][set wrong (wrong + 1)]]
+  ;print (word "El porcentaje de acierto es de: " (correct / (length DataTrain) * 100))
+  ;print (word "El porcentaje de fallo es de: " (wrong / (length DataTrain) * 100))
+
+  set fitness (correct / (length DataTrain) * 100)
+
+end
+
+to-report AI:Crossover [c1 c2]
+
+  let h1 [] ; Cromosoma hijo1
+  let h2 [] ; Cromosoma hijo2
+
+  ; Intercambio aleatorio de los genes que no son iguales para los dos padres
+  (foreach c1 c2
+  [[p1 p2] -> ifelse(p1 != p2 and (random 1) = 1)[set h1 (lput p2 h1) set h2 (lput p1 h2)]
+    [set h1 (lput p1 h1) set h2 (lput p2 h2)]])
+
+  report (list h1 h2)
+
+end
+
+; Mutation procedure
+; Random mutation of units of the content.
+; Individual procedure
+to AI:mutate [#mutation-ratio]
+
+  let moda modes content
+  set content map [p -> ifelse-value(random-float 100.0 < #mutation-ratio)[item 0 moda][p]] content
+
+end
+
+to AI:ExternalUpdate
+
+  let best max-one-of AI:individuals [fitness]
+  plots
+  display
+
+end
+
+to plots
+  let lista-fitness [fitness] of turtles
+  let mejor-fitness max lista-fitness
+  let media-fitness mean lista-fitness
+  let peor-fitness min lista-fitness
+  set-current-plot "Fitness"
+  set-current-plot-pen "mean"
+  plot media-fitness
+  set-current-plot-pen "best"
+  plot mejor-fitness
+  set-current-plot-pen "worst"
+  plot peor-fitness
+end
+
+
+
+;----------------------------------------------------------------------------CREATOR OF .CSV-------------------------------------------------------------------------------
+
+to creaCSV
+
+  let lineas []
+  ask turtles [die]
+
+  coloreaMundo
+
+  ;repeat Entradas[
+  ;  ask patches with [pxcor = random-pxcor and pycor = random-pycor][set lineas (lput (list pxcor pycor pcolor) lineas)]
+  ;]
+
+  crt Entradas[
+    set xcor random-pxcor
+    set ycor random-pycor
+    set shape "circle"
+    set color black
+  ]
+
+  ask turtles [set lineas (lput (list pxcor pycor pcolor) lineas)]
+
+  ;set lineas (fput cabecera lineas)
+  csv:to-file "autoCSV-netlogo.csv" lineas
+
+end
+
+to coloreaMundo
+
+  clear-patches
+  resize-world 0 Tamx 0 TamY
+
+  let mundoColoreado? false
+  let aunPulsado? false
+  let c 15
+
+  while[not mundoColoreado?][
+    set mundoColoreado? true
+    set aunPulsado? false
+
+    if(mouse-down?)[
+      let corx round(mouse-xcor)
+      let cory round(mouse-ycor)
+      ask patches with [
+        (pxcor = corx and pycor = cory) or
+        (pxcor = corx + 1 and pycor = cory) or
+        (pxcor = corx - 1 and pycor = cory) or
+        (pxcor = corx and pycor = cory + 1) or
+        (pxcor = corx and pycor = cory - 1)
+      ][set pcolor c]
+      set aunPulsado? true
+    ]
+
+    if(not aunPulsado?)[set c (c + 10)]
+
+    ask patches [if(pcolor = 0)[set mundoColoreado? false]]
+
+  ]
+
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
-537
+538
 10
-1403
-552
+1256
+729
 -1
 -1
-13.0
+10.0
 1
 10
 1
@@ -230,9 +456,9 @@ GRAPHICS-WINDOW
 1
 1
 0
-65
+70
 0
-40
+70
 0
 0
 1
@@ -266,13 +492,13 @@ NIL
 SLIDER
 0
 10
-172
+170
 43
 k
 k
-0
+1
 10
-4.0
+1.0
 1
 1
 NIL
@@ -281,13 +507,13 @@ HORIZONTAL
 SLIDER
 0
 43
-172
+170
 76
 TamX
 TamX
 0
 100
-65.0
+70.0
 1
 1
 NIL
@@ -296,13 +522,13 @@ HORIZONTAL
 SLIDER
 0
 75
-172
+170
 108
 TamY
 TamY
 0
 100
-40.0
+70.0
 1
 1
 NIL
@@ -310,9 +536,9 @@ HORIZONTAL
 
 BUTTON
 1
-109
+229
 65
-142
+262
 Setup
 setup
 NIL
@@ -327,9 +553,9 @@ NIL
 
 BUTTON
 67
-109
+229
 170
-142
+262
 NIL
 aplicaKNN
 NIL
@@ -344,9 +570,9 @@ NIL
 
 BUTTON
 0
-143
+263
 170
-176
+296
 NIL
 aplicaCondensacion
 NIL
@@ -361,9 +587,9 @@ NIL
 
 BUTTON
 0
-175
+295
 170
-208
+328
 NIL
 aplicaReduccion
 NIL
@@ -378,9 +604,9 @@ NIL
 
 INPUTBOX
 0
-208
-170
-268
+108
+63
+168
 ColumnaX
 0.0
 1
@@ -389,31 +615,20 @@ Number
 
 INPUTBOX
 0
-268
-170
-328
+168
+63
+228
 ColumnaY
 1.0
 1
 0
 Number
 
-INPUTBOX
-0
-328
-170
-388
-ColumnaRes
-4.0
-1
-0
-Number
-
 BUTTON
 0
-388
+327
 170
-421
+360
 NIL
 muestraCondensacion
 NIL
@@ -428,11 +643,189 @@ NIL
 
 BUTTON
 0
-421
+360
 170
-454
+393
 NIL
 muestraReduccion
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+SLIDER
+180
+447
+534
+480
+PorcentajeEntrenamiento
+PorcentajeEntrenamiento
+0
+100
+75.0
+1
+1
+NIL
+HORIZONTAL
+
+BUTTON
+180
+479
+363
+524
+NIL
+test
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+CHOOSER
+362
+480
+534
+525
+DataSelect
+DataSelect
+"DataFrame" "CondensedDataFrame" "ReducedDataFrame"
+0
+
+SWITCH
+63
+108
+170
+141
+normalizeX?
+normalizeX?
+1
+1
+-1000
+
+SWITCH
+62
+168
+170
+201
+normalizeY?
+normalizeY?
+1
+1
+-1000
+
+PLOT
+0
+446
+180
+589
+Fitness
+gen n
+fitness
+0.0
+20.0
+0.0
+100.0
+true
+false
+"" ""
+PENS
+"best" 1.0 0 -13791810 true "" ""
+"mean" 1.0 0 -13840069 true "" ""
+"worst" 1.0 0 -2674135 true "" ""
+
+SLIDER
+361
+523
+534
+556
+crossover-ratio
+crossover-ratio
+0
+100
+50.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+361
+556
+534
+589
+mutation-ratio
+mutation-ratio
+0
+100
+50.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+180
+523
+362
+556
+Population
+Population
+0
+10
+5.0
+1
+1
+NIL
+HORIZONTAL
+
+BUTTON
+180
+556
+362
+589
+NIL
+searchBestK
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+SLIDER
+0
+648
+172
+681
+Entradas
+Entradas
+0
+100
+100.0
+1
+1
+NIL
+HORIZONTAL
+
+BUTTON
+173
+648
+282
+681
+NIL
+creaCSV
 NIL
 1
 T
