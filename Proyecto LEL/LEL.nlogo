@@ -1,3 +1,6 @@
+breed [campeonesAzules campeonAzul]
+breed [campeonesRojos campeonRojo]
+
 breed [torresAzules torreAzul]
 breed [torresRojas torreRoja]
 breed [nexos nexo]
@@ -5,12 +8,15 @@ breed [nexos nexo]
 breed [miniomsAzules miniomAzul]
 breed [miniomsRojos miniomRojo]
 
-nexos-own [vida]
-torresAzules-own [vida carril]
-torresRojas-own [vida carril]
+campeonesAzules-own [vida danno atacandoNexo? atacandoTorre? atacandoMiniom? atacandoCampeon? contadorMinioms contadorBajas contadorMuertes corObjX corObjY]
+campeonesRojos-own [vida danno atacandoNexo? atacandoTorre? atacandoMiniom? atacandoCampeon? contadorMinioms contadorBajas contadorMuertes]
 
-miniomsAzules-own [vida carril]
-miniomsRojos-own [vida carril]
+nexos-own [vida]
+torresAzules-own [vida carril atacandoCampeon? atacandoMiniom?]
+torresRojas-own [vida carril atacandoCampeon? atacandoMiniom?]
+
+miniomsAzules-own [vida carril atacandoNexo? atacandoTorre? atacandoMiniom?]
+miniomsRojos-own [vida carril atacandoNexo? atacandoTorre? atacandoMiniom?]
 
 globals [
 
@@ -45,17 +51,15 @@ end
 
 to play
 
-  ;creaMiniomsAzules
-  ;creaMiniomsRojos
+  creaCampeones
+  creaMiniomsAzules
+  creaMiniomsRojos
 
   while[true][
 
-   if(count miniomsAzules + count miniomsRojos < 18)[
-      creaMiniomsAzules
-      creaMiniomsRojos
-    ]
-
     gestionaMinioms
+    gestionaTorres
+    gestionaCampeonAzul
     tick
 
   ]
@@ -64,6 +68,49 @@ end
 
 ; --------------------------------------------FUNCIONES PARA ADMINISTRACIÓN DEL MAPA-----------------------------------------------------
 
+to gestionaCampeonAzul
+
+  ask campeonesAzules [
+
+    let rango (list (list pxcor pycor) (list (pxcor + 1) (pycor + 1)) (list pxcor (pycor + 1)) (list (pxcor + 1) pycor)
+      (list (pxcor + 1) (pycor - 1)) (list pxcor (pycor - 1)) (list (pxcor - 1) (pycor - 1)) (list (pxcor - 1) pycor)
+      (list (pxcor - 1) (pycor + 1))(list (pxcor + 2) (pycor + 2)) (list pxcor (pycor + 2)) (list (pxcor + 2) pycor)
+      (list (pxcor + 2) (pycor - 2)) (list pxcor (pycor - 2)) (list (pxcor - 2) (pycor - 2)) (list (pxcor - 2) pycor)
+      (list (pxcor - 2) (pycor + 2)))
+
+    foreach rango [ t ->
+
+      let CC count campeonesRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      if(not atacandoMiniom? and CC > 0)[set atacandoCampeon? atacaCampeon (list (item 0 t) (item 1 t)) 200]
+
+      let MC count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+
+      if(not atacandoCampeon? and MC > 0)[
+
+        ask miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)][
+          set vida (vida - 200)
+          if(vida <= 0)[
+            die
+          ]
+        ]
+
+        let MC2 count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+        if(MC2 < MC)[set atacandoMiniom? false]
+      ]
+
+    ]
+
+    if(mouse-down?)[
+      set corObjX round(mouse-xcor)
+      set corObjY round(mouse-ycor)
+    ]
+
+    if(corObjX != pxcor or corObjY != pycor)[mueveCampeon corObjX corObjY]
+
+  ]
+
+end
+
 to gestionaMinioms
 
   ask miniomsAzules [
@@ -71,9 +118,6 @@ to gestionaMinioms
     let rango (list (list pxcor pycor carril) (list (pxcor + 1) (pycor + 1) carril) (list pxcor (pycor + 1) carril) (list (pxcor + 1) pycor carril)
       (list (pxcor + 1) (pycor - 1) carril) (list pxcor (pycor - 1) carril) (list (pxcor - 1) (pycor - 1) carril) (list (pxcor - 1) pycor carril)
       (list (pxcor - 1) (pycor + 1) carril))
-
-    let atacandoTorre? false
-    let atacandoMiniom? false
 
     foreach rango [ t ->
 
@@ -84,13 +128,20 @@ to gestionaMinioms
         ask miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)][
           set vida (vida - 10)
           if(vida <= 0)[
-            set atacandoMiniom? false
             die
           ]
         ]
+
+        let MC2 count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+        if(MC2 < MC)[set atacandoMiniom? false]
+
       ]
+
+
+
+      if((item 0 t) = 48 and (item 1 t) = 48 and not atacandoMiniom? or atacandoNexo?)[set atacandoNexo? atacaNexo 1 100]
       if(member? t coordenadasTorresRojas or atacandoTorre?)[set atacandoTorre? atacaTorre t 100]
-      if(not atacandoTorre? and not atacandoMiniom?)[mueveAzul pcolor]
+      if(not atacandoTorre? and not atacandoMiniom? and not atacandoNexo?)[mueveAzul pcolor]
     ]
 
     wait 0.005
@@ -102,9 +153,6 @@ to gestionaMinioms
     let rango (list (list pxcor pycor carril) (list (pxcor + 1) (pycor + 1) carril) (list pxcor (pycor + 1) carril) (list (pxcor + 1) pycor carril)
       (list (pxcor + 1) (pycor - 1) carril) (list pxcor (pycor - 1) carril) (list (pxcor - 1) (pycor - 1) carril) (list (pxcor - 1) pycor carril)
       (list (pxcor - 1) (pycor + 1) carril))
-
-    let atacandoTorre? false
-    let atacandoMiniom? false
 
     foreach rango [ t ->
 
@@ -119,16 +167,119 @@ to gestionaMinioms
             die
           ]
         ]
+
+        let MC2 count miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
+        if(MC2 < MC)[set atacandoMiniom? false]
+
       ]
+      if((item 0 t) = 2 and (item 1 t) = 2 and not atacandoMiniom? or atacandoNexo?)[set atacandoNexo? atacaNexo 0 100]
       if(member? t coordenadasTorresAzules or atacandoTorre?)[set atacandoTorre? atacaTorre t 100]
-      if(not atacandoTorre? and not atacandoMiniom?)[mueveRojo pcolor]
+      if(not atacandoTorre? and not atacandoMiniom? and not atacandoNexo?)[mueveRojo pcolor]
     ]
 
     wait 0.005
 
   ]
 
-  ;ask miniomsRojos [mueveRojo K-NNGen coordenadasTorresRojas (list xcor ycor) TRUE 1 pcolor]
+end
+
+to gestionaTorres
+
+  ask torresAzules [
+
+    let rango (list (list pxcor pycor carril) (list (pxcor + 1) (pycor + 1) carril) (list pxcor (pycor + 1) carril) (list (pxcor + 1) pycor carril)
+      (list (pxcor + 1) (pycor - 1) carril) (list pxcor (pycor - 1) carril) (list (pxcor - 1) (pycor - 1) carril) (list (pxcor - 1) pycor carril)
+      (list (pxcor - 1) (pycor + 1) carril)(list (pxcor + 2) (pycor + 2) carril) (list pxcor (pycor + 2) carril) (list (pxcor + 2) pycor carril)
+      (list (pxcor + 2) (pycor - 2) carril) (list pxcor (pycor - 2) carril) (list (pxcor - 2) (pycor - 2) carril) (list (pxcor - 2) pycor carril)
+      (list (pxcor - 2) (pycor + 2) carril)(list (pxcor + 3) (pycor + 3) carril) (list pxcor (pycor + 3) carril) (list (pxcor + 3) pycor carril)
+      (list (pxcor + 3) (pycor - 3) carril) (list pxcor (pycor - 3) carril) (list (pxcor - 3) (pycor - 3) carril) (list (pxcor - 3) pycor carril)
+      (list (pxcor - 3) (pycor + 3) carril))
+
+    foreach rango [ t ->
+
+      let MC count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+
+      if(not atacandoCampeon? and MC > 0)[
+
+        ask miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)][
+          set vida (vida - 200)
+          if(vida <= 0)[
+            die
+          ]
+        ]
+
+        let MC2 count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+        if(MC2 < MC)[set atacandoMiniom? false]
+      ]
+
+      let CC count campeonesRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      if(not atacandoMiniom? and CC > 0)[set atacandoCampeon? atacaCampeon (list (item 0 t) (item 1 t)) 200]
+
+    ]
+
+  ]
+
+  ask torresRojas [
+
+    let rango (list (list pxcor pycor carril) (list (pxcor + 1) (pycor + 1) carril) (list pxcor (pycor + 1) carril) (list (pxcor + 1) pycor carril)
+      (list (pxcor + 1) (pycor - 1) carril) (list pxcor (pycor - 1) carril) (list (pxcor - 1) (pycor - 1) carril) (list (pxcor - 1) pycor carril)
+      (list (pxcor - 1) (pycor + 1) carril)(list (pxcor + 2) (pycor + 2) carril) (list pxcor (pycor + 2) carril) (list (pxcor + 2) pycor carril)
+      (list (pxcor + 2) (pycor - 2) carril) (list pxcor (pycor - 2) carril) (list (pxcor - 2) (pycor - 2) carril) (list (pxcor - 2) pycor carril)
+      (list (pxcor - 2) (pycor + 2) carril)(list (pxcor + 3) (pycor + 3) carril) (list pxcor (pycor + 3) carril) (list (pxcor + 3) pycor carril)
+      (list (pxcor + 3) (pycor - 3) carril) (list pxcor (pycor - 3) carril) (list (pxcor - 3) (pycor - 3) carril) (list (pxcor - 3) pycor carril)
+      (list (pxcor - 3) (pycor + 3) carril))
+
+    foreach rango [ t ->
+
+      let MC count miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
+
+      if(not atacandoCampeon? and MC > 0)[
+
+        ask miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)][
+          set vida (vida - 200)
+          if(vida <= 0)[
+            die
+          ]
+        ]
+
+        let MC2 count miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
+        if(MC2 < MC)[set atacandoMiniom? false]
+      ]
+
+      let CC count campeonesAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      if(not atacandoMiniom? and CC > 0)[set atacandoCampeon? atacaCampeon (list (item 0 t) (item 1 t)) 200]
+
+    ]
+
+  ]
+
+end
+
+to-report atacaCampeon [coord damage]
+
+  let res true
+
+  ask campeonesAzules with [pxcor = (item 0 coord) and pycor = (item 1 coord)][
+    set vida (vida - damage)
+    if(vida <= 0)[
+      set xcor 0
+      set ycor 0
+      set danno (danno - 10)
+      set res false
+    ]
+  ]
+
+  ask campeonesRojos with [pxcor = (item 0 coord) and pycor = (item 1 coord)][
+    set vida (vida - damage)
+    if(vida <= 0)[
+      set xcor 0
+      set ycor 0
+      set danno (danno - 10)
+      set res false
+    ]
+  ]
+
+  report res
 
 end
 
@@ -152,7 +303,42 @@ to-report atacaTorre [coord damage]
       die
     ]
   ]
+
   report res
+
+end
+
+to-report atacaNexo[n damage]
+
+  let res true
+
+  ifelse(n = 1)[ask nexos with[pxcor = 46 and pycor = 46][
+    set vida (vida - damage)
+    if(vida <= 0)[
+      set nexoRojo? false
+      die
+    ]
+   ]
+  ][
+  ask nexos with[pxcor = 4 and pycor = 4][
+    set vida (vida - damage)
+    if(vida <= 0)[
+      set nexoRojo? false
+      die
+    ]
+   ]
+  ]
+
+  report res
+
+end
+
+to mueveCampeon [x y]
+
+  if(xcor < x)[set xcor (xcor + 0.015)]
+  if(xcor > x)[set xcor (xcor - 0.015)]
+  if(ycor < y)[set ycor (ycor + 0.015)]
+  if(ycor > y)[set ycor (ycor - 0.015)]
 
 end
 
@@ -195,36 +381,79 @@ end
 
 ; --------------------------------------------FUNCIONES PARA CREACIÓN DEL MAPA-----------------------------------------------------
 
+to creaCampeones
+
+  create-campeonesAzules 1 [
+    set xcor 5
+    set ycor 5
+    set size 2
+    set vida 1000
+    set danno 80
+    set atacandoCampeon? false
+    set atacandoTorre? false
+    set atacandoMiniom? false
+    set atacandoNexo? false
+    set contadorMinioms 0
+    set contadorBajas 0
+    set contadorMuertes 0
+  ]
+
+  create-campeonesRojos 1 [
+    set xcor 45
+    set ycor 45
+    set size 2
+    set vida 1000
+    set danno 80
+    set atacandoCampeon? false
+    set atacandoTorre? false
+    set atacandoMiniom? false
+    set atacandoNexo? false
+    set contadorMinioms 0
+    set contadorBajas 0
+    set contadorMuertes 0
+  ]
+
+end
+
 to creaMiniomsAzules
 
   create-miniomsAzules 1 [
-    set xcor 10
+    set xcor 5
     set ycor 1
     set shape "miniom azul"
     set size 3
     set heading 0
     set color grey
     set vida 1200
+    set atacandoTorre? false
+    set atacandoMiniom? false
+    set atacandoNexo? false
   ]
 
   create-miniomsAzules 1 [
-    set xcor 10
-    set ycor 10
+    set xcor 7
+    set ycor 7
     set shape "miniom azul"
     set size 3
     set heading 0
     set color grey
     set vida 1200
+    set atacandoTorre? false
+    set atacandoMiniom? false
+    set atacandoNexo? false
   ]
 
   create-miniomsAzules 1 [
     set xcor 1
-    set ycor 10
+    set ycor 5
     set shape "miniom azul"
     set size 3
     set heading 0
     set color grey
     set vida 1200
+    set atacandoTorre? false
+    set atacandoMiniom? false
+    set atacandoNexo? false
   ]
 
   ask miniomsAzules [set carril K-NNGen coordenadasTorresAzules (list xcor ycor) TRUE 3]
@@ -234,33 +463,42 @@ end
 to creaMiniomsRojos
 
   create-miniomsRojos 1 [
-    set xcor 40
+    set xcor 45
     set ycor 49
     set shape "miniom rojo"
     set size 3
     set heading 0
     set color grey
     set vida 1200
+    set atacandoTorre? false
+    set atacandoMiniom? false
+    set atacandoNexo? false
   ]
 
   create-miniomsRojos 1 [
-    set xcor 40
-    set ycor 40
+    set xcor 42
+    set ycor 42
     set shape "miniom rojo"
     set size 3
     set heading 0
     set color grey
     set vida 1200
+    set atacandoTorre? false
+    set atacandoMiniom? false
+    set atacandoNexo? false
   ]
 
   create-miniomsRojos 1 [
     set xcor 49
-    set ycor 40
+    set ycor 45
     set shape "miniom rojo"
     set size 3
     set heading 0
     set color grey
     set vida 1200
+    set atacandoTorre? false
+    set atacandoMiniom? false
+    set atacandoNexo? false
   ]
 
   ask miniomsRojos [set carril K-NNGen coordenadasTorresRojas (list xcor ycor) TRUE 3]
@@ -345,6 +583,8 @@ to creaTorresAzules
     set color grey
     set carril 0
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   create-torresAzules 1 [
@@ -356,6 +596,8 @@ to creaTorresAzules
     set color grey
     set carril 0
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   create-torresAzules 1 [
@@ -367,6 +609,8 @@ to creaTorresAzules
     set color grey
     set carril 0
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   ;TORRES DEL CARRIL SUPERIOR
@@ -379,6 +623,8 @@ to creaTorresAzules
     set color grey
     set carril 2
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   create-torresAzules 1 [
@@ -390,6 +636,8 @@ to creaTorresAzules
     set color grey
     set carril 2
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   create-torresAzules 1 [
@@ -401,6 +649,8 @@ to creaTorresAzules
     set color grey
     set carril 2
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   ;TORRES DEL CARRIL CENTRAL
@@ -413,6 +663,8 @@ to creaTorresAzules
     set color grey
     set carril 1
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   create-torresAzules 1 [
@@ -424,6 +676,8 @@ to creaTorresAzules
     set color grey
     set carril 1
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   create-torresAzules 1 [
@@ -435,6 +689,8 @@ to creaTorresAzules
     set color grey
     set carril 1
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
 end
@@ -451,6 +707,8 @@ to creaTorresRojas
     set color grey
     set carril 0
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   create-torresRojas 1 [
@@ -462,6 +720,8 @@ to creaTorresRojas
     set color grey
     set carril 0
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
     create-torresRojas 1 [
@@ -473,6 +733,8 @@ to creaTorresRojas
     set color grey
     set carril 0
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   ;TORRES DEL CARRIL SUPERIOR
@@ -485,6 +747,8 @@ to creaTorresRojas
     set color grey
     set carril 2
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   create-torresRojas 1 [
@@ -496,6 +760,8 @@ to creaTorresRojas
     set color grey
     set carril 2
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   create-torresRojas 1 [
@@ -507,6 +773,8 @@ to creaTorresRojas
     set color grey
     set carril 2
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   ;TORRES DEL CARRIL CENTRAL
@@ -519,6 +787,8 @@ to creaTorresRojas
     set color grey
     set carril 1
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   create-torresRojas 1 [
@@ -530,6 +800,8 @@ to creaTorresRojas
     set color grey
     set carril 1
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
   create-torresRojas 1 [
@@ -541,6 +813,8 @@ to creaTorresRojas
     set color grey
     set carril 1
     set vida 50000
+    set atacandoCampeon? false
+    set atacandoMiniom? false
   ]
 
 end
@@ -838,14 +1112,22 @@ Rectangle -7500403 true true 135 150 165 225
 nexo azul
 true
 0
-Circle -7500403 true true 83 83 134
-Circle -13791810 true false 105 105 88
+Circle -7500403 true true 15 15 270
+Circle -13791810 true false 44 44 210
+Rectangle -1184463 true false 15 135 45 165
+Rectangle -1184463 true false 135 15 165 45
+Rectangle -1184463 true false 255 135 285 165
+Rectangle -1184463 true false 135 255 165 285
 
 nexo rojo
 true
 0
-Circle -7500403 true true 83 83 134
-Circle -955883 true false 105 105 88
+Circle -7500403 true true 15 15 270
+Circle -955883 true false 43 43 212
+Rectangle -1184463 true false 135 15 165 45
+Rectangle -1184463 true false 15 135 45 165
+Rectangle -1184463 true false 135 255 165 285
+Rectangle -1184463 true false 255 135 285 165
 
 pentagon
 false
