@@ -8,8 +8,8 @@ breed [nexos nexo]
 breed [miniomsAzules miniomAzul]
 breed [miniomsRojos miniomRojo]
 
-campeonesAzules-own [vida danno atacandoNexo? atacandoTorre? atacandoMiniom? atacandoCampeon? contadorMinioms contadorBajas contadorMuertes corObjX corObjY]
-campeonesRojos-own [vida danno atacandoNexo? atacandoTorre? atacandoMiniom? atacandoCampeon? contadorMinioms contadorBajas contadorMuertes]
+campeonesAzules-own [vida vidaTotal danno atacandoNexo? atacandoTorre? atacandoMiniom? atacandoCampeon? contadorMinioms contadorBajas contadorMuertes corObjX corObjY]
+campeonesRojos-own [vida vidaTotal danno atacandoNexo? atacandoTorre? atacandoMiniom? atacandoCampeon? contadorMinioms contadorBajas contadorMuertes]
 
 nexos-own [vida]
 torresAzules-own [vida carril atacandoCampeon? atacandoMiniom?]
@@ -25,6 +25,8 @@ globals [
 
   nexoAzul?
   nexoRojo?
+
+  tempTorres
 
 ]
 
@@ -51,16 +53,39 @@ end
 
 to play
 
+  reset-timer
+  let antes 0
+  let tem 0
+  let despues timer
+  set tempTorres 0
+
   creaCampeones
-  creaMiniomsAzules
-  creaMiniomsRojos
 
   while[true][
 
-    gestionaMinioms
-    gestionaTorres
-    gestionaCampeonAzul
-    tick
+    set despues timer
+
+    if(despues - antes >= 30)[
+      repeat 1 [
+        creaMiniomsRojos
+        creaMiniomsAzules
+      ]
+      print "Se han generado subditos"
+      set antes despues
+    ]
+
+    if(despues - tem >= 0.05)[
+      gestionaMinioms
+      gestionaCampeonAzul
+
+      if(despues - tempTorres >= 0.5)[
+        gestionaTorres
+        set tempTorres despues
+      ]
+
+      tick
+      set tem despues
+    ]
 
   ]
 
@@ -78,27 +103,48 @@ to gestionaCampeonAzul
       (list (pxcor + 2) (pycor - 2)) (list pxcor (pycor - 2)) (list (pxcor - 2) (pycor - 2)) (list (pxcor - 2) pycor)
       (list (pxcor - 2) (pycor + 2)))
 
+    let corObjetivo[]
+    let MC 0
+    let TC 0
+    let CC 0
+
     foreach rango [ t ->
 
-      let CC count campeonesRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
-      if(not atacandoMiniom? and CC > 0)[set atacandoCampeon? atacaCampeon (list (item 0 t) (item 1 t)) 200]
+      ;let TCaux 0
 
-      let MC count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      let MCaux count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      if(MCaux > 0)[set MC MCaux]
 
-      if(not atacandoCampeon? and MC > 0)[
+      let TCaux count torresRojas with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      if(TCaux > 0)[set TC TCaux]
 
-        ask miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)][
-          set vida (vida - 200)
-          if(vida <= 0)[
-            die
-          ]
-        ]
+      let CCaux count campeonesRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      if(CCaux > 0)[set CC MCaux]
 
-        let MC2 count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
-        if(MC2 < MC)[set atacandoMiniom? false]
-      ]
+      if(MCaux > 0)[set corObjetivo (list item 0 t item 1 t)]
+      if(TCaux > 0)[set corObjetivo (list item 0 t item 1 t)]
+      if(CCaux > 0)[set corObjetivo (list item 0 t item 1 t)]
+      if(item 0 t = 48 and item 1 t = 48)[set corObjetivo [48 48]]
 
     ]
+
+    if(not atacandoMiniom? and not atacandoTorre? and CC > 0)[set atacandoCampeon? atacaCampeon (list (item 0 corObjetivo) (item 1 corObjetivo)) 200]
+    if(not atacandoMiniom? and not atacandoCampeon? and TC > 0)[set atacandoTorre? atacaTorre corObjetivo danno]
+    if(not atacandoCampeon? and MC > 0)[
+
+      ask miniomsRojos with [pxcor = (item 0 corObjetivo) and pycor = (item 1 corObjetivo)][
+        set vida (vida - 200)
+        if(vida <= 0)[
+          die
+        ]
+      ]
+
+      let MC2 count miniomsRojos with [pxcor = (item 0 corObjetivo) and pycor = (item 1 corObjetivo)]
+      if(MC2 < MC)[set atacandoMiniom? false set contadorMinioms (contadorMinioms + 1)]
+    ]
+
+    set vidaTotal ((contadorMinioms / 100) * vidaTotal)
+    set danno ((contadorMinioms / 100) * danno)
 
     if(mouse-down?)[
       set corObjX round(mouse-xcor)
@@ -119,32 +165,47 @@ to gestionaMinioms
       (list (pxcor + 1) (pycor - 1) carril) (list pxcor (pycor - 1) carril) (list (pxcor - 1) (pycor - 1) carril) (list (pxcor - 1) pycor carril)
       (list (pxcor - 1) (pycor + 1) carril))
 
+    let corObjetivo [0 0]
+    let MC 0
+    let TC 0
+
     foreach rango [ t ->
 
-      let MC count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      ;let TCaux 0
+      let MCaux count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      if(MCaux > 0)[set MC MCaux]
 
-      if(not atacandoTorre? and MC > 0)[
-        set atacandoMiniom? true
-        ask miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)][
-          set vida (vida - 10)
-          if(vida <= 0)[
-            die
-          ]
-        ]
+      let TCaux count torresRojas with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      if(TCaux > 0)[set TC TCaux]
 
-        let MC2 count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
-        if(MC2 < MC)[set atacandoMiniom? false]
+      ;if(member? (list item 0 t item 1 t carril) coordenadasTorresRojas)[set TCaux 1]
 
-      ]
+      if(MCaux > 0)[set corObjetivo (list item 0 t item 1 t)]
+      if(TCaux > 0)[set corObjetivo (list item 0 t item 1 t)]
+      if(item 0 t = 48 and item 1 t = 48)[set corObjetivo [48 48]]
 
-
-
-      if((item 0 t) = 48 and (item 1 t) = 48 and not atacandoMiniom? or atacandoNexo?)[set atacandoNexo? atacaNexo 1 100]
-      if(member? t coordenadasTorresRojas or atacandoTorre?)[set atacandoTorre? atacaTorre t 100]
-      if(not atacandoTorre? and not atacandoMiniom? and not atacandoNexo?)[mueveAzul pcolor]
     ]
 
-    wait 0.005
+    if((item 0 corObjetivo) = 48 and (item 1 corObjetivo) = 48 and not atacandoMiniom? and not atacandoTorre?)[set atacandoNexo? atacaNexo 1 100]
+    if(not atacandoMiniom? and TC > 0)[set atacandoTorre? atacaTorre corObjetivo 100]
+
+    if(not atacandoTorre? and MC > 0)[
+      set atacandoMiniom? true
+      ask miniomsRojos with [pxcor = (item 0 corObjetivo) and pycor = (item 1 corObjetivo)][
+        set vida (vida - 10)
+        if(vida <= 0)[
+          die
+        ]
+      ]
+
+      let MC2 count miniomsRojos with [pxcor = (item 0 corObjetivo) and pycor = (item 1 corObjetivo)]
+      if(MC2 < MC)[set atacandoMiniom? false]
+
+    ]
+
+    if(not atacandoTorre? and not atacandoMiniom? and not atacandoNexo?)[mueveAzul pcolor]
+
+    ;wait 0.005
 
   ]
 
@@ -154,30 +215,49 @@ to gestionaMinioms
       (list (pxcor + 1) (pycor - 1) carril) (list pxcor (pycor - 1) carril) (list (pxcor - 1) (pycor - 1) carril) (list (pxcor - 1) pycor carril)
       (list (pxcor - 1) (pycor + 1) carril))
 
+    let corObjetivo [0 0]
+    let MC 0
+    let TC 0
+
     foreach rango [ t ->
 
-      let MC count miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      let TCaux 0
+      let MCaux count miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      if(MCaux > 0)[set MC MCaux]
 
-      if(not atacandoTorre? and MC > 0)[
-        set atacandoMiniom? true
-        ask miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)][
-          set vida (vida - 10)
-          if(vida <= 0)[
-            set atacandoMiniom? false
-            die
-          ]
-        ]
+      ;let TCaux count torresAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      ;if(TCaux > 0)[set TC TCaux]
 
-        let MC2 count miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
-        if(MC2 < MC)[set atacandoMiniom? false]
+      if(member? (list item 0 t item 1 t carril) coordenadasTorresAzules)[set TCaux 1]
 
-      ]
-      if((item 0 t) = 2 and (item 1 t) = 2 and not atacandoMiniom? or atacandoNexo?)[set atacandoNexo? atacaNexo 0 100]
-      if(member? t coordenadasTorresAzules or atacandoTorre?)[set atacandoTorre? atacaTorre t 100]
-      if(not atacandoTorre? and not atacandoMiniom? and not atacandoNexo?)[mueveRojo pcolor]
+      ;set MC count miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      ;set TC count torresAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
+
+      if(MCaux > 0)[set corObjetivo (list item 0 t item 1 t)]
+      if(TCaux > 0)[set corObjetivo (list item 0 t item 1 t)]
+      if(item 0 t = 2 and item 1 t = 2)[set corObjetivo [2 2]]
+
     ]
 
-    wait 0.005
+    if(not atacandoTorre? and MC > 0)[
+      set atacandoMiniom? true
+      ask miniomsAzules with [pxcor = (item 0 corObjetivo) and pycor = (item 1 corObjetivo)][
+        set vida (vida - 10)
+        if(vida <= 0)[
+          set atacandoMiniom? false
+          die
+        ]
+      ]
+
+      let MC2 count miniomsAzules with [pxcor = (item 0 corObjetivo) and pycor = (item 1 corObjetivo)]
+      if(MC2 < MC)[set atacandoMiniom? false]
+
+    ]
+    if((item 0 corObjetivo) = 2 and (item 1 corObjetivo) = 2 and not atacandoMiniom? or atacandoNexo?)[set atacandoNexo? atacaNexo 0 100]
+    if(member? (list item 0 corObjetivo item 1 corObjetivo carril) coordenadasTorresAzules or atacandoTorre?)[set atacandoTorre? atacaTorre corObjetivo 100]
+    if(not atacandoTorre? and not atacandoMiniom? and not atacandoNexo?)[mueveRojo pcolor]
+
+    ;wait 0.005
 
   ]
 
@@ -195,27 +275,39 @@ to gestionaTorres
       (list (pxcor + 3) (pycor - 3) carril) (list pxcor (pycor - 3) carril) (list (pxcor - 3) (pycor - 3) carril) (list (pxcor - 3) pycor carril)
       (list (pxcor - 3) (pycor + 3) carril))
 
+    let corObjetivo [0 0]
+    let MC 0
+    let CC 0
+
     foreach rango [ t ->
 
-      let MC count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      let MCaux count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      if(MCaux > 0)[set MC MCaux]
 
-      if(not atacandoCampeon? and MC > 0)[
+      let CCaux count campeonesRojos with [pxcor = (item 0 t) and pycor = (item 1 corObjetivo)]
+      if(CCaux > 0)[set CC CCaux]
 
-        ask miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)][
-          set vida (vida - 200)
-          if(vida <= 0)[
-            die
-          ]
-        ]
-
-        let MC2 count miniomsRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
-        if(MC2 < MC)[set atacandoMiniom? false]
-      ]
-
-      let CC count campeonesRojos with [pxcor = (item 0 t) and pycor = (item 1 t)]
-      if(not atacandoMiniom? and CC > 0)[set atacandoCampeon? atacaCampeon (list (item 0 t) (item 1 t)) 200]
+      if(CCaux > 0)[set corObjetivo (list item 0 t item 1 t)]
+      if(MCaux > 0)[set corObjetivo (list item 0 t item 1 t)]
 
     ]
+
+    if(not atacandoCampeon? and MC > 0)[
+
+      set atacandoMiniom? true
+
+      ask miniomsRojos with [pxcor = (item 0 corObjetivo) and pycor = (item 1 corObjetivo)][
+        set vida (vida - 25)
+        if(vida <= 0)[
+          die
+        ]
+      ]
+
+      let MC2 count miniomsRojos with [pxcor = (item 0 corObjetivo) and pycor = (item 1 corObjetivo)]
+      if(MC2 < MC)[set atacandoMiniom? false]
+    ]
+
+    if(not atacandoMiniom? and CC > 0)[set atacandoCampeon? atacaCampeon (list (item 0 corObjetivo) (item 1 corObjetivo)) 200]
 
   ]
 
@@ -229,27 +321,39 @@ to gestionaTorres
       (list (pxcor + 3) (pycor - 3) carril) (list pxcor (pycor - 3) carril) (list (pxcor - 3) (pycor - 3) carril) (list (pxcor - 3) pycor carril)
       (list (pxcor - 3) (pycor + 3) carril))
 
+    let corObjetivo [0 0]
+    let MC 0
+    let CC 0
+
     foreach rango [ t ->
 
-      let MC count miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      let MCaux count miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      if(MCaux > 0)[set MC MCaux]
 
-      if(not atacandoCampeon? and MC > 0)[
+      let CCaux count campeonesAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
+      if(CCaux > 0)[set CC CCaux]
 
-        ask miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)][
-          set vida (vida - 200)
-          if(vida <= 0)[
-            die
-          ]
-        ]
-
-        let MC2 count miniomsAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
-        if(MC2 < MC)[set atacandoMiniom? false]
-      ]
-
-      let CC count campeonesAzules with [pxcor = (item 0 t) and pycor = (item 1 t)]
-      if(not atacandoMiniom? and CC > 0)[set atacandoCampeon? atacaCampeon (list (item 0 t) (item 1 t)) 200]
+      if(CCaux > 0)[set corObjetivo (list item 0 t item 1 t)]
+      if(MCaux > 0)[set corObjetivo (list item 0 t item 1 t)]
 
     ]
+
+    if(not atacandoCampeon? and MC > 0)[
+
+      set atacandoMiniom? true
+
+      ask miniomsAzules with [pxcor = (item 0 corObjetivo) and pycor = (item 1 corObjetivo)][
+        set vida (vida - 25)
+        if(vida <= 0)[
+          die
+        ]
+      ]
+
+      let MC2 count miniomsAzules with [pxcor = (item 0 corObjetivo) and pycor = (item 1 corObjetivo)]
+      if(MC2 < MC)[set atacandoMiniom? false]
+    ]
+
+    if(not atacandoMiniom? and CC > 0)[set atacandoCampeon? atacaCampeon (list (item 0 corObjetivo) (item 1 corObjetivo)) 200]
 
   ]
 
@@ -264,6 +368,7 @@ to-report atacaCampeon [coord damage]
     if(vida <= 0)[
       set xcor 0
       set ycor 0
+      set vida vidaTotal
       set danno (danno - 10)
       set res false
     ]
@@ -274,6 +379,7 @@ to-report atacaCampeon [coord damage]
     if(vida <= 0)[
       set xcor 0
       set ycor 0
+      set vida vidaTotal
       set danno (danno - 10)
       set res false
     ]
@@ -287,10 +393,12 @@ to-report atacaTorre [coord damage]
 
   let res true
 
+  ;set coord (list first coord last coord carril )
+
   ask torresAzules with[xcor = (item 0 coord) and ycor = (item 1 coord)][
     set vida (vida - damage)
     if(vida <= 0)[
-      set coordenadasTorresAzules remove coord coordenadasTorresAzules
+      ;set coordenadasTorresAzules remove coord coordenadasTorresAzules
       set res false
       die
     ]
@@ -298,7 +406,7 @@ to-report atacaTorre [coord damage]
   ask torresRojas with[xcor = (item 0 coord) and ycor = (item 1 coord)][
     set vida (vida - damage)
     if(vida <= 0)[
-      set coordenadasTorresRojas remove coord coordenadasTorresRojas
+      ;set coordenadasTorresRojas remove coord coordenadasTorresRojas
       set res false
       die
     ]
@@ -335,10 +443,10 @@ end
 
 to mueveCampeon [x y]
 
-  if(xcor < x)[set xcor (xcor + 0.015)]
-  if(xcor > x)[set xcor (xcor - 0.015)]
-  if(ycor < y)[set ycor (ycor + 0.015)]
-  if(ycor > y)[set ycor (ycor - 0.015)]
+  if(xcor < x)[set xcor (xcor + 0.15)]
+  if(xcor > x)[set xcor (xcor - 0.15)]
+  if(ycor < y)[set ycor (ycor + 0.15)]
+  if(ycor > y)[set ycor (ycor - 0.15)]
 
 end
 
@@ -388,6 +496,7 @@ to creaCampeones
     set ycor 5
     set size 2
     set vida 1000
+    set vidaTotal 1000
     set danno 80
     set atacandoCampeon? false
     set atacandoTorre? false
@@ -403,6 +512,7 @@ to creaCampeones
     set ycor 45
     set size 2
     set vida 1000
+    set vidaTotal 1000
     set danno 80
     set atacandoCampeon? false
     set atacandoTorre? false
@@ -668,8 +778,8 @@ to creaTorresAzules
   ]
 
   create-torresAzules 1 [
-    set xcor 17
-    set ycor 17
+    set xcor 16
+    set ycor 16
     set shape "torreta azul"
     set size 3
     set heading 0
@@ -681,8 +791,8 @@ to creaTorresAzules
   ]
 
   create-torresAzules 1 [
-    set xcor 23
-    set ycor 23
+    set xcor 22
+    set ycor 22
     set shape "torreta azul"
     set size 3
     set heading 0
@@ -792,8 +902,8 @@ to creaTorresRojas
   ]
 
   create-torresRojas 1 [
-    set xcor 33
-    set ycor 33
+    set xcor 34
+    set ycor 34
     set shape "torreta roja"
     set size 3
     set heading 0
@@ -805,8 +915,8 @@ to creaTorresRojas
   ]
 
   create-torresRojas 1 [
-    set xcor 27
-    set ycor 27
+    set xcor 28
+    set ycor 28
     set shape "torreta roja"
     set size 3
     set heading 0
