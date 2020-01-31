@@ -642,7 +642,7 @@ end
 ; and connect them with the applied transition. The process continues till
 ; there are no more non explored states.
 
-to complete-graph [initial-state]
+to complete-graph ;[initial-state]
 
   ; Create the agent associated with the initial state
   create-states 1
@@ -650,7 +650,8 @@ to complete-graph [initial-state]
     set content [[0 4 4 4 4 4 4][4 4 4 4 4 4 0]]
     set path (list self)
     set explored? false
-    set player 0
+    set player 1
+    hide-turtle
   ]
 
   ; While there are non explored states (the verification about reaching the
@@ -663,8 +664,9 @@ to complete-graph [initial-state]
       foreach applicable-transitions content player
       [ ?1 ->
         let applied-state apply-transition ?1 content player
+        let pp player
         ; Consider only new states
-        ifelse not any? states with [content = applied-state]
+        ifelse not any? states with [content = applied-state and player = pp]
         [
           ; Create a new agent for every new state
           hatch-states 1
@@ -672,21 +674,24 @@ to complete-graph [initial-state]
             set content applied-state
             set explored? false
             ; and connect it to its father with a labelled link
-            create-transition-from myself [set rule ?1 set label first ?1 set label-color black]
-            set color white
+            create-transition-from myself [set rule ?1]
             ; Complete the path from initial state to here
             set path lput self path
+            set player ((player + 1) mod 2)
           ]
         ]
         [
           let past one-of states with [content = applied-state]
-          create-transition-to past [set rule ?1 set label first ?1 set label-color black]
+          create-transition-to past [set rule ?1]
         ]
       ]
       ; After calculated all the successors, we mark the state as explored
       set explored? true
     ]
   ]
+
+  print "Grafo de partidas completado :D"
+
 end
 
 ; Rules are represented as pairs [ "representation" f ] where f allows
@@ -729,7 +734,15 @@ to Q-learning [jugador]
   ; Reset the values for transitions and states
   ask transitions [
     set Q 0
-    ifelse(jugador)[set RR last (first ([content] of end2))][set RR first ( first ([content] of end2))]
+    ;ifelse(jugador)[set RR last (first ([content] of end2))][set RR first ( first ([content] of end2))]
+
+    ifelse(jugador)[
+      ifelse([player] of end2 = 0)[set RR last (first ([content] of end2))][set RR ( - (first ( first ([content] of end2))))]
+    ][
+      let aux end2
+      ifelse([player] of end2 = 1)[set RR last (first ([content] of end2))][set RR ( - (first ( first ([content] of end2))))]
+    ]
+    ;set RR 0
     set variation (Max-Variation + 1)
   ]
 
@@ -740,7 +753,6 @@ to Q-learning [jugador]
       let Q2 (1 - nu) * Q + nu * (RR + gamma * max [Q] of ([my-out-transitions] of end2))
       set variation abs (Q2 - Q)
       set Q Q2
-      set label Q
     ]
     tick
   ]
@@ -753,22 +765,89 @@ to Q-learning [jugador]
 
 end
 
-; To use the information of Q in the calculation of the Solution we move from the initial state
-; to the final state using the transitions iwth higher weights (Q).
-to Q-execute [jugador]
+to Q-learning2
 
-  let puntuacion 0
+  reset-ticks
 
-  let i-state one-of states with [content = [[0 4 4 4 4 4 4][4 4 4 4 4 4 0]]]
-  ifelse(jugador)[set puntuacion last (first ([content] of end2))][set puntuacion first ( first ([content] of end2))]
+  ask transitions [
+    set Q 0
+    set RR (first ( first ([content] of end2))) - (last (first ([content] of end2)))
+    set variation (Max-Variation + 1)
+  ]
 
-  while [puntuacion < 24]
-  [
-    ask i-state [
-      let accion one-of my-out-transitions
-      set i-state [end2] of accion
+  repeat 5 [jugar4]
+
+end
+
+to jugar4
+
+  set turno-extra false
+  let jugado? false
+
+  if(turno = 0)[
+    print "--------------------------------------------IA ROJA----------------------------------------------------"
+    print "Que calaja tan bonitaa :D\n"
+    ;let m MCTS:UCT (list matriz-global 1) 1000
+
+    let i-state one-of states with [content = matriz-global and player = 1]
+    let m 0
+
+    ask i-state [set m max-one-of my-out-transitions [Q]]
+
+    print(word "Al final, he decidido repartir las semillas del hueco " m)
+    print "--------------------------------------------------------------------------------------------------\n"
+    set turno-extra false
+
+    set jugado? (aplicaJugada m 0 turno) ; Jugador1, juega la parte inferior
+    if(jugado?)[
+      set turno ((turno + 1) mod 2)
+      representaTablero
+      ;representaTurno
+      if(finPartida?)[stop]
+      wait 1
+    ]
+    if(turno-extra)[
+      representaTurno
+      set jugado? false
+      set turno-extra false
+      set turno ((turno + 1) mod 2)
+      ifelse(turno = 0)[print "TURNO EXTRA PARA EL JUGADOR ROJO"][print "TURNO EXTRA PARA EL JUGADOR AZUL"]
     ]
   ]
+
+  representaTurno
+
+  if(turno = 1)[
+    print "--------------------------------------------IA AZUL----------------------------------------------------"
+    print "Que calaja tan bonitaa :D\n"
+
+    let i-state one-of states with [content = matriz-global and player = 0]
+    let m 0
+
+    ask i-state [set m max-one-of my-out-transitions [Q]]
+
+    print(word "Al final, he decidido repartir las semillas del hueco " m)
+    print "--------------------------------------------------------------------------------------------------\n"
+    set turno-extra false
+
+    set jugado? (aplicaJugada m 1 turno) ; Jugador2, juega la parte superior
+    if(jugado?)[
+      set turno ((turno + 1) mod 2)
+      representaTablero
+      ;representaTurno
+      if(finPartida?)[stop]
+      wait 1
+    ]
+    if(turno-extra)[
+      representaTurno
+      set jugado? false
+      set turno-extra false
+      set turno ((turno + 1) mod 2)
+      ifelse(turno = 0)[print "TURNO EXTRA PARA EL JUGADOR ROJO"][print "TURNO EXTRA PARA EL JUGADOR AZUL"]
+    ]
+  ]
+
+
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -885,6 +964,17 @@ NIL
 NIL
 NIL
 1
+
+MONITOR
+1137
+220
+1251
+265
+NIL
+count states
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
