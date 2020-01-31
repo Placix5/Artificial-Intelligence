@@ -729,7 +729,44 @@ end
 ;;
 
 ; Training Procedure
-to Q-learning
+to Q-learning [jugador]
+  ; Ticks will count the number of steps
+  reset-ticks
+  ; Reset the values for transitions and states
+  ask transitions [
+    set Q 0
+    ;ifelse(jugador)[set RR last (first ([content] of end2))][set RR first ( first ([content] of end2))]
+
+    ifelse(jugador)[
+      ifelse([player] of end2 = 0)[set RR last (first ([content] of end2))][set RR ( - (first ( first ([content] of end2))))]
+    ][
+      let aux end2
+      ifelse([player] of end2 = 1)[set RR last (first ([content] of end2))][set RR ( - (first ( first ([content] of end2))))]
+    ]
+    ;set RR 0
+    set variation (Max-Variation + 1)
+  ]
+
+  ; Repeat the learning process for transitions until max of variations is under the boud
+  while [max [variation] of transitions > Max-Variation]
+  [
+    ask transitions [
+      let Q2 (1 - nu) * Q + nu * (RR + gamma * max [Q] of ([my-out-transitions] of end2))
+      set variation abs (Q2 - Q)
+      set Q Q2
+    ]
+    tick
+  ]
+
+  ; Normalize the quality of transitions and show it as color and thickness on links
+  let MaxQ max [Q] of transitions
+  ask transitions [
+    set Q Q / MaxQ
+  ]
+
+end
+
+to Q-learning2
 
   reset-ticks
 
@@ -757,12 +794,16 @@ to Q-learning
         ;representaTurno
 
         ask transitions [
+          ;set Q 0
+          ;set RR (first ( first ([content] of end2))) - (last (first ([content] of end2)))
+          ;set variation (Max-Variation + 1)
+
           if(not empty? [Q] of ([my-out-transitions] of end2))[
             let Q2 (1 - nu) * Q + nu * (RR + gamma * max [Q] of ([my-out-transitions] of end2))
             set variation abs (Q2 - Q)
             set Q Q2
           ]
-        ]
+      ]
 
       ]
     ]
@@ -772,7 +813,7 @@ to Q-learning
 
 end
 
-to training
+to traini
 
   set turno-extra false
   let jugado? false
