@@ -792,13 +792,9 @@ to training
     let tls applicable-transitions matriz-global 0
     let trans one-of tls
 
-    if(debug)[
-
-      let estadoBuscado apply-transition trans matriz-global 1
-      print (word "Este es el estado de la matriz global: " matriz-global)
-      print (word "Este es el estado que se añade: " estadoBuscado)
-
-    ]
+    let estadoBuscado apply-transition trans matriz-global 0
+    print (word "Este es el estado de la matriz global: " matriz-global)
+    print (word "Este es el estado que se añade: " estadoBuscado)
 
     ; Consider only new states
     (ask states with [content = matriz-global and player = 0][
@@ -914,13 +910,9 @@ to training
     let tls applicable-transitions matriz-global 0
     let trans one-of tls
 
-    if(debug)[
-
-      let estadoBuscado apply-transition trans matriz-global 1
-      print (word "Este es el estado de la matriz global: " matriz-global)
-      print (word "Este es el estado que se añade: " estadoBuscado)
-
-    ]
+    let estadoBuscado apply-transition trans matriz-global 1
+    print (word "Este es el estado de la matriz global: " matriz-global)
+    print (word "Este es el estado que se añade: " estadoBuscado)
 
     ; Consider only new states
     ;(ask states with [content = matriz-global and player = 0][
@@ -1053,6 +1045,17 @@ GRAPHICS-WINDOW
 ticks
 30.0
 
+SWITCH
+0
+0
+0
+0
+NIL
+NIL
+1
+1
+-1000
+
 BUTTON
 211
 223
@@ -1168,17 +1171,6 @@ NIL
 NIL
 NIL
 1
-
-SWITCH
-233
-441
-336
-474
-debug
-debug
-1
-1
--1000
 
 @#$#@#$#@
 ## WHAT IS IT?
