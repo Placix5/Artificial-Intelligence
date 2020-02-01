@@ -323,7 +323,7 @@ to jugar2
       if(jugado?)[
         set turno ((turno + 1) mod 2)
         representaTablero
-        ;representaTurno
+        representaTurno
         if(finPartida?)[stop]
         wait 0.25
       ]
@@ -350,7 +350,7 @@ to jugar2
     if(jugado?)[
       set turno ((turno + 1) mod 2)
       representaTablero
-      ;representaTurno
+      representaTurno
       if(finPartida?)[stop]
       wait 1
     ]
@@ -382,7 +382,7 @@ to jugar3
     if(jugado?)[
       set turno ((turno + 1) mod 2)
       representaTablero
-      ;representaTurno
+      representaTurno
       if(finPartida?)[stop]
       wait 1
     ]
@@ -409,7 +409,7 @@ to jugar3
     if(jugado?)[
       set turno ((turno + 1) mod 2)
       representaTablero
-      ;representaTurno
+      representaTurno
       if(finPartida?)[stop]
       wait 1
     ]
@@ -744,8 +744,8 @@ to Q-learning
   ]
 
   creaTablero
-  ;representaTablero
-  ;representaTurno
+  representaTablero
+  representaTurno
 
   repeat 5 [
     while[TRUE][
@@ -753,8 +753,8 @@ to Q-learning
       if(finPartida?)[
 
         creaTablero
-        ;representaTablero
-        ;representaTurno
+        representaTablero
+        representaTurno
 
         ask transitions [
           if(not empty? [Q] of ([my-out-transitions] of end2))[
@@ -830,13 +830,13 @@ to training
     set jugado? (aplicaJugada trans 0 turno) ; Jugador1, juega la parte inferior
     if(jugado?)[
       set turno ((turno + 1) mod 2)
-      ;representaTablero
-      ;representaTurno
+      representaTablero
+      representaTurno
       if(finPartida?)[set finRonda? true]
       wait 1
     ]
     if(turno-extra)[
-      ;representaTurno
+      representaTurno
 
       ; Creamos el grafo segun se vaya jugando
       set tls applicable-transitions matriz-global 1
@@ -931,13 +931,13 @@ to training
     set jugado? (aplicaJugada trans 1 turno) ; Jugador2, juega la parte superior
     if(jugado?)[
       set turno ((turno + 1) mod 2)
-      ;representaTablero
-      ;representaTurno
+      representaTablero
+      representaTurno
       if(finPartida?)[set finRonda? true]
       wait 1
     ]
     if(turno-extra)[
-      ;representaTurno
+      representaTurno
 
       ; Creamos el grafo segun se vaya jugando
       set tls applicable-transitions matriz-global 0
@@ -1112,12 +1112,12 @@ count states
 11
 
 BUTTON
-646
-230
-742
-263
+618
+223
+714
+256
 NIL
-Q-learning2
+Q-learning\n
 NIL
 1
 T
