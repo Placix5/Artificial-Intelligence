@@ -748,22 +748,20 @@ to Q-learning
   representaTurno
 
   repeat 5 [
-    while[TRUE][
-      training
-      if(finPartida?)[
+    while[not finPartida?][training]
 
-        creaTablero
-        representaTablero
-        representaTurno
+    if(finPartida?)[
 
-        ask transitions [
+      creaTablero
+      representaTablero
+      representaTurno
+
+      ask transitions [
           if(not empty? [Q] of ([my-out-transitions] of end2))[
-            let Q2 (1 - nu) * Q + nu * (RR + gamma * max [Q] of ([my-out-transitions] of end2))
-            set variation abs (Q2 - Q)
-            set Q Q2
-          ]
+          let Q2 (1 - nu) * Q + nu * (RR + gamma * max [Q] of ([my-out-transitions] of end2))
+          set variation abs (Q2 - Q)
+          set Q Q2
         ]
-
       ]
     ]
   ]
@@ -793,11 +791,18 @@ to training
     let trans one-of tls
 
     ; Consider only new states
-    (ask states with [content = matriz-global and player = 1][
-      let applied-state apply-transition trans content player
-      let pp ((player + 1) mod 2)
+    ;(ask states with [content = matriz-global and player = 1][
+    (ask states with [content = matriz-global][
 
-      (ifelse (not any? states with [content = applied-state and player = pp])
+      print "Estado encontrado"
+
+      ;let applied-state apply-transition trans content player
+      let applied-state apply-transition trans matriz-global player
+
+      let pp 0
+
+      ;(ifelse (not any? states with [content = applied-state and player = pp])
+      (ifelse (not any? states with [content = applied-state])
           [
             ; Create a new agent for every new state
             hatch-states 1
@@ -806,7 +811,7 @@ to training
               set explored? false
               ; Complete the path from initial state to here
               set path lput self path
-              set player pp
+              set player 0
               ; and connect it to its father with a labelled link
               create-transition-from myself [
                 set Q 0
@@ -833,9 +838,9 @@ to training
       representaTablero
       representaTurno
       if(finPartida?)[set finRonda? true]
-      wait 1
+      ;wait 1
     ]
-    if(turno-extra)[
+    if(turno-extra and not finRonda?)[
       representaTurno
 
       ; Creamos el grafo segun se vaya jugando
@@ -843,11 +848,18 @@ to training
       set trans one-of tls
 
       ; Consider only new states
-      (ask states with [content = matriz-global and player = 0][
-        let applied-state apply-transition trans content player
+      ;(ask states with [content = matriz-global and player = 0][
+      (ask states with [content = matriz-global][
+
+        print "Estado encontrado"
+
+        ;let applied-state apply-transition trans content player
+        let applied-state apply-transition trans matriz-global player
+
         let pp player
 
-        (ifelse (not any? states with [content = applied-state and player = pp])
+        ;(ifelse (not any? states with [content = applied-state and player = pp])
+        (ifelse (not any? states with [content = applied-state])
           [
             ; Create a new agent for every new state
             hatch-states 1
@@ -856,7 +868,7 @@ to training
               set explored? false
               ; Complete the path from initial state to here
               set path lput self path
-              set player ((pp + 1) mod 2)
+              set player 0
               ; and connect it to its father with a labelled link
               create-transition-from myself [
                 set Q 0
@@ -896,11 +908,18 @@ to training
     let trans one-of tls
 
     ; Consider only new states
-    (ask states with [content = matriz-global and player = 0][
-      let applied-state apply-transition trans content player
+    ;(ask states with [content = matriz-global and player = 0][
+    (ask states with [content = matriz-global][
+
+      print "Estado encontrado"
+
+      ;let applied-state apply-transition trans content player
+      let applied-state apply-transition trans matriz-global player
+
       let pp ((player + 1) mod 2)
 
-      (ifelse (not any? states with [content = applied-state and player = pp])[
+      ;(ifelse (not any? states with [content = applied-state and player = pp])[
+      (ifelse (not any? states with [content = applied-state])[
         ; Create a new agent for every new state
         hatch-states 1
         [
@@ -908,7 +927,7 @@ to training
           set explored? false
           ; Complete the path from initial state to here
           set path lput self path
-          set player pp
+          set player 1
             ; and connect it to its father with a labelled link
           create-transition-from myself [
             set Q 0
@@ -934,9 +953,9 @@ to training
       representaTablero
       representaTurno
       if(finPartida?)[set finRonda? true]
-      wait 1
+      ;wait 1
     ]
-    if(turno-extra)[
+    if(turno-extra and not finRonda?)[
       representaTurno
 
       ; Creamos el grafo segun se vaya jugando
@@ -944,11 +963,18 @@ to training
       set trans one-of tls
 
       ; Consider only new states
-      (ask states with [content = matriz-global and player = 1][
-        let applied-state apply-transition trans content player
+      ;(ask states with [content = matriz-global and player = 1][
+      (ask states with [content = matriz-global][
+
+        print "Estado encontrado"
+
+        ;let applied-state apply-transition trans content player
+        let applied-state apply-transition trans matriz-global player
+
         let pp player
 
-        (ifelse (not any? states with [content = applied-state and player = pp])
+        ;(ifelse (not any? states with [content = applied-state and player = pp])
+        (ifelse (not any? states with [content = applied-state])
           [
             ; Create a new agent for every new state
             hatch-states 1
@@ -957,7 +983,7 @@ to training
               set explored? false
               ; Complete the path from initial state to here
               set path lput self path
-              set player ((pp + 1) mod 2)
+              set player 1
               ; and connect it to its father with a labelled link
               create-transition-from myself [
                 set Q 0
