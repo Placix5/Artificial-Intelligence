@@ -34,6 +34,8 @@ globals [
   gamma
   Max-Variation
 
+  contJugadas
+
 ]
 
 to setup
@@ -45,6 +47,8 @@ to setup
   set-patch-size 100
 
   set turno 0
+
+  set contJugadas 0
 
   set nu 0.15
   set gamma 0.5
@@ -733,6 +737,8 @@ to Q-learning
 
   reset-ticks
 
+  set contJugadas 0
+
   ; Create the agent associated with the initial state
   create-states 1
   [
@@ -747,10 +753,12 @@ to Q-learning
   representaTablero
   representaTurno
 
-  repeat 5 [
+  repeat numEntrenamiento [
     while[not finPartida?][training]
 
     if(finPartida?)[
+
+      set contJugadas (contJugadas + 1)
 
       creaTablero
       representaTablero
@@ -767,6 +775,7 @@ to Q-learning
   ]
 
   print "Se acabo el entrenamiento :D"
+  set turno 0
 
 end
 
@@ -776,11 +785,9 @@ to training
   let jugado? false
   let finRonda? false
 
-  ;print (word "Este es el estado de la matriz global: " matriz-global)
-
   if(turno = 0 and not finRonda?)[
-    print "--------------------------------------------IA ROJA----------------------------------------------------"
-    print "Que calaja tan bonitaa :D\n"
+    ;print "--------------------------------------------IA ROJA----------------------------------------------------"
+    ;print "Que calaja tan bonitaa :D\n"
     ;let m MCTS:UCT (list matriz-global 1) 1000
 
     ; Si estuviese el grafo completo creado
@@ -790,16 +797,75 @@ to training
 
     ; Creamos el grafo segun se vaya jugando
     let tls applicable-transitions matriz-global 0
-    let trans one-of tls
 
-    let estadoBuscado apply-transition trans matriz-global 0
-    print (word "Este es el estado de la matriz global: " matriz-global)
-    print (word "Este es el estado que se añade: " estadoBuscado)
+
+      let trans one-of tls
+    ][
+      (ifelse (any? states with [content = matriz-global and player = 1] and any? last [my-out-transitions] of states with [content = matriz-global and player = 1])[
+
+        print "Nodo encontrado"
+
+        let i-state one-of states with [content = matriz-global and player = 1]
+        ask i-state [
+          let accion max-one-of my-out-transitions [Q]
+          ask accion [set m rule]
+        ]
+
+      ][
+
+        let tls applicable-transitions matriz-global 1
+        let trans one-of tls
+
+        set m trans
+
+      (ask states with [content = matriz-global][
+
+          print "Estado encontrado"
+
+          ;let applied-state apply-transition trans content player
+          let applied-state apply-transition trans matriz-global 1
+
+          ;(ifelse (not any? states with [content = applied-state and player = pp])[
+        (ifelse (not any? states with [content = applied-state])[
+            ; Create a new agent for every new state
+            hatch-states 1
+            [
+              set content applied-state
+              set explored? false
+              set label content
+              ; and connect it to its father with a labelled link
+              create-transition-from myself [
+                set Q 0
+                set RR (first ( first ([content] of end2))) - (last (first ([content] of end2)))
+                set variation (Max-Variation + 1)
+                set rule trans
+              ]
+            ; Complete the path from initial state to here
+              set path lput self path
+              set player 0
+            ]
+
+            set explored? true
+            print "Se ha creado un nuevo nodo :D"
+          ][
+            print "EL NODO YA ESTABA CREADO :DDDD"
+          ])
+        ])
+      ])
+    ]
+
+    if(debug)[
+
+      let estadoBuscado apply-transition trans matriz-global 0
+      print (word "Este es el estado de la matriz global: " matriz-global)
+      print (word "Este es el estado que se añade: " estadoBuscado)
+
+    ]
 
     ; Consider only new states
-    (ask states with [content = matriz-global and player = 0][
-
-      print "Estado encontrado"
+    ;(ask states with [content = matriz-global and player = 0][
+    (ask states with [content = matriz-global][
+      ;print "Estado encontrado"
 
       ;let applied-state apply-transition trans content player
       let applied-state apply-transition trans matriz-global 0
@@ -812,9 +878,7 @@ to training
           [
             set content applied-state
             set explored? false
-            ; Complete the path from initial state to here
-            set path lput self path
-            set player 1
+            set label content
             ; and connect it to its father with a labelled link
             create-transition-from myself [
               set Q 0
@@ -822,72 +886,194 @@ to training
               set variation (Max-Variation + 1)
               set rule trans
             ]
+            ; Complete the path from initial state to here
+            set path lput self path
+            set player 1
+
+
+            set size 0.1
           ]
 
-          print "Se ha creado un nuevo nodo :D"
+          set explored? true
+          ;print "Se ha creado un nuevo nodo :D"
         ]
         [
-          print "EL NODO YA ESTABA CREADO :DDDD"
+
+          ;print "EL NODO YA ESTABA CREADO :DDDD"
       ])
     ])
 
-    print(word "Al final, he decidido repartir las semillas del hueco " trans)
-    print "--------------------------------------------------------------------------------------------------\n"
+    ;print(word "Al final, he decidido repartir las semillas del hueco " trans)
+    ;print "--------------------------------------------------------------------------------------------------\n"
     set turno-extra false
 
     set jugado? (aplicaJugada trans 0 turno) ; Jugador1, juega la parte inferior
     if(jugado?)[
       set turno ((turno + 1) mod 2)
-      representaTablero
-      representaTurno
+      ;representaTablero
+      ;representaTurno
       if(finPartida?)[set finRonda? true]
       ;wait 1
     ]
     if(turno-extra and not finRonda?)[
       representaTurno
 
-      ; Creamos el grafo segun se vaya jugando
-      ;set tls applicable-transitions matriz-global 1
-      ;set trans one-of tls
+      ask states with [content = matriz-global and player = 1][set player 0]
 
-      ; Consider only new states
-      ;(ask states with [content = matriz-global and player = 0][
-      ;(ask states with [content = matriz-global][
+      set jugado? false
+      set turno-extra false
+      set turno ((turno + 1) mod 2)
+      ;ifelse(turno = 0)[print "TURNO EXTRA PARA EL JUGADOR ROJO"][print "TURNO EXTRA PARA EL JUGADOR AZUL"]
+    ]
+  ]
 
-        ;print "Estado encontrado"
+  representaTurno
 
-        ;let applied-state apply-transition trans content player
-        ;let applied-state apply-transition trans matriz-global player
+  if(turno = 1 and not finRonda?)[
+    ;print "--------------------------------------------IA AZUL----------------------------------------------------"
+    ;print "Que calaja tan bonitaa :D\n"
 
-        ;let pp player
+    ;let i-state one-of states with [content = matriz-global and player = 0]
+    ;let m 0
 
-        ;(ifelse (not any? states with [content = applied-state and player = pp])
-        ;(ifelse (not any? states with [content = applied-state])
-          ;[
+    ;ask i-state [set m max-one-of my-out-transitions [Q]]
+
+    ; Creamos el grafo segun se vaya jugando
+    let tls applicable-transitions matriz-global 0
+
+    ifelse(contJugadas > numEntrenamientos / 2)[
+
+    ][
+    ]
+    let trans one-of tls
+
+    if(debug)[
+
+      let estadoBuscado apply-transition trans matriz-global 1
+      print (word "Este es el estado de la matriz global: " matriz-global)
+      print (word "Este es el estado que se añade: " estadoBuscado)
+
+    ]
+
+    ; Consider only new states
+    ;(ask states with [content = matriz-global and player = 1][
+    (ask states with [content = matriz-global][
+
+      ;print "Estado encontrado"
+
+      ;let applied-state apply-transition trans content player
+      let applied-state apply-transition trans matriz-global 1
+
+      ;(ifelse (not any? states with [content = applied-state and player = pp])[
+      (ifelse (not any? states with [content = applied-state])[
+        ; Create a new agent for every new state
+        hatch-states 1
+        [
+          set content applied-state
+          set explored? false
+          set label content
+            ; and connect it to its father with a labelled link
+          create-transition-from myself [
+            set Q 0
+            set RR (first ( first ([content] of end2))) - (last (first ([content] of end2)))
+            set variation (Max-Variation + 1)
+            set rule trans
+          ]
+          ; Complete the path from initial state to here
+          set path lput self path
+          set player 0
+        ]
+
+        set explored? true
+        ;print "Se ha creado un nuevo nodo :D"
+      ][
+        ;print "EL NODO YA ESTABA CREADO :DDDD"
+      ])
+    ])
+
+    ;print(word "Al final, he decidido repartir las semillas del hueco " trans)
+    ;print "--------------------------------------------------------------------------------------------------\n"
+    set turno-extra false
+
+    set jugado? (aplicaJugada trans 1 turno) ; Jugador2, juega la parte superior
+    if(jugado?)[
+      set turno ((turno + 1) mod 2)
+      ;representaTablero
+      ;representaTurno
+      if(finPartida?)[set finRonda? true]
+      ;wait 1
+    ]
+    if(turno-extra and not finRonda?)[
+      representaTurno
+
+      ask states with [content = matriz-global and player = 0][set player 1]
+
+      set jugado? false
+      set turno-extra false
+      set turno ((turno + 1) mod 2)
+      ;ifelse(turno = 0)[print "TURNO EXTRA PARA EL JUGADOR ROJO"][print "TURNO EXTRA PARA EL JUGADOR AZUL"]
+    ]
+  ]
+
+end
+
+to jugar4
+
+  set turno-extra false
+  let jugado? false
+
+  if(turno = 0)[
+    if(mouse-down?)[
+
+      let trans round(mouse-xcor)
+
+      (ask states with [content = matriz-global][
+
+      let applied-state apply-transition trans matriz-global 0
+
+      ;(ifelse (not any? states with [content = applied-state and player = pp])
+      (ifelse (not any? states with [content = applied-state])
+        [
             ; Create a new agent for every new state
-            ;hatch-states 1
-            ;[
-              ;set content applied-state
-              ;set explored? false
-              ; Complete the path from initial state to here
-              ;set path lput self path
-              ;set player 0
-              ; and connect it to its father with a labelled link
-              ;create-transition-from myself [
-                ;set Q 0
-                ;set RR (first ( first ([content] of end2))) - (last (first ([content] of end2)))
-                ;set variation (Max-Variation + 1)
-                ;set rule trans
-              ;]
-            ;]
+          hatch-states 1
+          [
+            set content applied-state
+            set explored? false
+            set label content
+            ; and connect it to its father with a labelled link
+            create-transition-from myself [
+              set Q 0
+              set RR (first ( first ([content] of end2))) - (last (first ([content] of end2)))
+              set variation (Max-Variation + 1)
+              set rule trans
+            ]
+            ; Complete the path from initial state to here
+            set path lput self path
+            set player 1
 
-            ;print "Se ha creado un nuevo nodo :D"
-          ;]
-          ;[
-           ; print "EL NODO YA ESTABA CREADO :DDDD"
-        ;])
-      ;])
 
+            set size 0.1
+          ]
+
+          set explored? true
+          print "Se ha creado un nuevo nodo :D"
+        ]
+        [
+
+          print "EL NODO YA ESTABA CREADO :DDDD"
+      ])
+    ])
+
+      set jugado? (aplicaJugada trans round(mouse-ycor) turno) ; Jugador2, juega la parte superior
+      if(jugado?)[
+        set turno ((turno + 1) mod 2)
+        representaTablero
+        representaTurno
+        if(finPartida?)[stop]
+        wait 0.25
+      ]
+    ]
+    if(turno-extra)[
       set jugado? false
       set turno-extra false
       set turno ((turno + 1) mod 2)
@@ -897,124 +1083,85 @@ to training
 
   representaTurno
 
-  if(turno = 1 and not finRonda?)[
-    print "--------------------------------------------IA AZUL----------------------------------------------------"
+  if(turno = 1)[
+    print "--------------------------------------------IA----------------------------------------------------"
     print "Que calaja tan bonitaa :D\n"
+    print "Espero que esta vez te cuente un poco más ganarme y recuerda que aprendo contigo :D"
 
-    ;let i-state one-of states with [content = matriz-global and player = 0]
-    ;let m 0
+    let m 5
 
-    ;ask i-state [set m max-one-of my-out-transitions [Q]]
+    (ifelse (any? states with [content = matriz-global and player = 1] and any? last [my-out-transitions] of states with [content = matriz-global and player = 1])[
 
-    ; Creamos el grafo segun se vaya jugando
-    let tls applicable-transitions matriz-global 0
-    let trans one-of tls
+      print "Nodo encontrado"
 
-    let estadoBuscado apply-transition trans matriz-global 1
-    print (word "Este es el estado de la matriz global: " matriz-global)
-    print (word "Este es el estado que se añade: " estadoBuscado)
+      let i-state one-of states with [content = matriz-global and player = 1]
+      ask i-state [
+        let accion max-one-of my-out-transitions [Q]
+        ask accion [set m rule]
+      ]
 
-    ; Consider only new states
-    ;(ask states with [content = matriz-global and player = 0][
-    (ask states with [content = matriz-global][
+    ][
 
-      print "Estado encontrado"
+      let tls applicable-transitions matriz-global 1
+      let trans one-of tls
 
-      ;let applied-state apply-transition trans content player
-      let applied-state apply-transition trans matriz-global 1
+      set m trans
 
-      let pp ((player + 1) mod 2)
+      (ask states with [content = matriz-global][
 
-      ;(ifelse (not any? states with [content = applied-state and player = pp])[
-      (ifelse (not any? states with [content = applied-state])[
-        ; Create a new agent for every new state
-        hatch-states 1
-        [
+        print "Estado encontrado"
+
+        ;let applied-state apply-transition trans content player
+        let applied-state apply-transition trans matriz-global 1
+
+        ;(ifelse (not any? states with [content = applied-state and player = pp])[
+        (ifelse (not any? states with [content = applied-state])[
+          ; Create a new agent for every new state
+          hatch-states 1
+          [
           set content applied-state
-          set explored? false
-          ; Complete the path from initial state to here
-          set path lput self path
-          set player 1
+            set explored? false
+            set label content
             ; and connect it to its father with a labelled link
-          create-transition-from myself [
-            set Q 0
-            set RR (first ( first ([content] of end2))) - (last (first ([content] of end2)))
-            set variation (Max-Variation + 1)
+            create-transition-from myself [
+              set Q 0
+              set RR (first ( first ([content] of end2))) - (last (first ([content] of end2)))
+              set variation (Max-Variation + 1)
             set rule trans
+            ]
+            ; Complete the path from initial state to here
+            set path lput self path
+            set player 0
           ]
-        ]
 
+          set explored? true
         print "Se ha creado un nuevo nodo :D"
-      ][
-        print "EL NODO YA ESTABA CREADO :DDDD"
+        ][
+          print "EL NODO YA ESTABA CREADO :DDDD"
+        ])
       ])
     ])
 
-    print(word "Al final, he decidido repartir las semillas del hueco " trans)
+    print(word "Al final, he decidido repartir las semillas del hueco " m)
     print "--------------------------------------------------------------------------------------------------\n"
     set turno-extra false
 
-    set jugado? (aplicaJugada trans 1 turno) ; Jugador2, juega la parte superior
+    set jugado? (aplicaJugada m 1 turno) ; Jugador2, juega la parte superior
     if(jugado?)[
       set turno ((turno + 1) mod 2)
       representaTablero
       representaTurno
-      if(finPartida?)[set finRonda? true]
-      ;wait 1
+      if(finPartida?)[stop]
+      wait 1
     ]
-    if(turno-extra and not finRonda?)[
+    if(turno-extra)[
       representaTurno
-
-      ; Creamos el grafo segun se vaya jugando
-      ;set tls applicable-transitions matriz-global 0
-      ;set trans one-of tls
-
-      ; Consider only new states
-      ;(ask states with [content = matriz-global and player = 1][
-      ;(ask states with [content = matriz-global][
-
-        ;print "Estado encontrado"
-
-        ;let applied-state apply-transition trans content player
-        ;let applied-state apply-transition trans matriz-global player
-
-        ;let pp player
-
-        ;(ifelse (not any? states with [content = applied-state and player = pp])
-        ;(ifelse (not any? states with [content = applied-state])
-          ;[
-            ; Create a new agent for every new state
-            ;hatch-states 1
-            ;[
-              ;set content applied-state
-              ;set explored? false
-              ; Complete the path from initial state to here
-              ;set path lput self path
-              ;set player 1
-              ; and connect it to its father with a labelled link
-              ;create-transition-from myself [
-                ;set Q 0
-                ;set RR (first ( first ([content] of end2))) - (last (first ([content] of end2)))
-                ;set variation (Max-Variation + 1)
-                ;set rule trans
-              ;]
-
-            ;]
-
-            ;print "Se ha creado un nuevo nodo :D"
-          ;]
-          ;[
-            ;print "EL NODO YA ESTABA CREADO :DDDD"
-        ;])
-      ;])
-
       set jugado? false
       set turno-extra false
       set turno ((turno + 1) mod 2)
       ifelse(turno = 0)[print "TURNO EXTRA PARA EL JUGADOR ROJO"][print "TURNO EXTRA PARA EL JUGADOR AZUL"]
     ]
   ]
-
 
 end
 @#$#@#$#@
@@ -1044,17 +1191,6 @@ GRAPHICS-WINDOW
 1
 ticks
 30.0
-
-SWITCH
-0
-0
-0
-0
-NIL
-NIL
-1
-1
--1000
 
 BUTTON
 211
@@ -1118,10 +1254,10 @@ NIL
 1
 
 TEXTBOX
-213
-279
-703
-414
+215
+271
+705
+406
 SI QUIERES JUGAR CONTRA OTRO JUGADOR, PULSA EL BOTÓN PLAYER VS PLAYER\n\nSI QUIERES JUGAR CONTRA LA IA, PULSA EL BOTÓN PLAYER VS IA\n\n
 12
 0.0
@@ -1156,11 +1292,11 @@ count states
 11
 
 BUTTON
-618
-223
-714
-256
-NIL
+827
+224
+930
+257
+Q-LEARNING
 Q-learning\n
 NIL
 1
@@ -1171,6 +1307,60 @@ NIL
 NIL
 NIL
 1
+
+SWITCH
+233
+441
+336
+474
+debug
+debug
+1
+1
+-1000
+
+BUTTON
+935
+224
+1117
+257
+PLAYER VS IA Q-LEARNING
+jugar4
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+SLIDER
+945
+261
+1117
+294
+numEntrenamiento
+numEntrenamiento
+0
+1000
+10.0
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+1139
+271
+1253
+316
+Contador de jugadas
+contJugadas
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
