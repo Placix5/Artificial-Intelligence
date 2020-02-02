@@ -743,7 +743,7 @@ to Q-training
 
   if(turno = 0 and not finRonda?)[
     ; Creamos el grafo segun se vaya jugando
-    let m (Q-addNode 0 matriz-global false)
+    let m (Q-addNode 0 matriz-global false true 0)
     set turno-extra false
 
     set jugado? (aplicaJugada m 0 turno) ; Jugador1, juega la parte inferior
@@ -753,7 +753,7 @@ to Q-training
     ]
     if(turno-extra and not finRonda?)[
       ; En caso de que el jugador1 tenga un turno extra, significa que el nodo que se ha añadido
-      ; pertenece a dicho jugador,
+      ; pertenece a dicho jugador, por lo que cambiamos esa información
       ask states with [content = matriz-global and player = 1][set player 0]
 
       set jugado? false
@@ -764,7 +764,7 @@ to Q-training
 
   if(turno = 1 and not finRonda?)[
     ; Creamos el grafo segun se vaya jugando
-    let m (Q-addNode 1 matriz-global true)
+    let m (Q-addNode 1 matriz-global true true 0)
     set turno-extra false
 
     set jugado? (aplicaJugada m 1 turno) ; Jugador2, juega la parte superior
@@ -773,6 +773,8 @@ to Q-training
       if(finPartida?)[set finRonda? true]
     ]
     if(turno-extra and not finRonda?)[
+      ; En caso de que el jugador2 tenga un turno extra, significa que el nodo que se ha añadido
+      ; pertenece a dicho jugador, por lo que cambiamos esa información
       ask states with [content = matriz-global and player = 0][set player 1]
 
       set jugado? false
@@ -787,16 +789,19 @@ end
 ; existía y no lo añade, para ello debemos pasarle el jugador que está jugando, la matriz y además podemos especificar
 ; si queremos usar Monte Carlo para realizar la jugada, en caso contrario será una jugada totalmente aleatoria
 
-to-report Q-addNode [p matriz MCTS?]
+to-report Q-addNode [p matriz MCTS? IA? xr]
 
   ; Creamos el grafo segun se vaya jugando
   let tls applicable-transitions matriz p
   let trans 0
 
-  ifelse(MCTS?)[
-    set trans MCTS:UCT (list matriz-global 1) 500
+  ; Si la llamada a la función ha sido realizada por la IA, pasamos a evaluar si se va a usar Monte Carlo
+  ; en caso de que la función no haya sido llamada por la IA, usamos la coordenada x del ratón capturada anteriormente
+
+  ifelse(IA?)[
+    ifelse(MCTS?)[set trans MCTS:UCT (list matriz-global 1) 00][set trans one-of tls]
   ][
-    set trans one-of tls
+    set trans xr
   ]
 
   if(debug)[
@@ -857,46 +862,12 @@ to jugar4
   if(turno = 0)[
     if(mouse-down?)[
 
-      let trans round(mouse-xcor)
+      let xr round(mouse-xcor) ; Capturamos la posición x del ratón para poder usarla
+      let yr round(mouse-ycor) ; Capturamos la posición y del ratón para poder usarla
 
-      (ask states with [content = matriz-global][
+      let m (Q-addNode 0 matriz-global false false xr)
 
-      let applied-state apply-transition trans matriz-global 0
-
-      ;(ifelse (not any? states with [content = applied-state and player = pp])
-      (ifelse (not any? states with [content = applied-state])
-        [
-            ; Create a new agent for every new state
-          hatch-states 1
-          [
-            set content applied-state
-            set explored? false
-            set label content
-            ; and connect it to its father with a labelled link
-            create-transition-from myself [
-              set Q 0
-              set RR (first ( first ([content] of end2))) - (last (first ([content] of end2)))
-              set variation (Max-Variation + 1)
-              set rule trans
-            ]
-            ; Complete the path from initial state to here
-            set path lput self path
-            set player 1
-
-
-            set size 0.1
-          ]
-
-          set explored? true
-          print "Se ha creado un nuevo nodo :D"
-        ]
-        [
-
-          print "EL NODO YA ESTABA CREADO :DDDD"
-      ])
-    ])
-
-      set jugado? (aplicaJugada trans round(mouse-ycor) turno) ; Jugador2, juega la parte superior
+      set jugado? (aplicaJugada m round(mouse-ycor) turno) ; Jugador2, juega la parte superior
       if(jugado?)[
         set turno ((turno + 1) mod 2)
         representaTablero
@@ -906,6 +877,8 @@ to jugar4
       ]
     ]
     if(turno-extra)[
+      ask states with [content = matriz-global and player = 1][set player 0]
+
       set jugado? false
       set turno-extra false
       set turno ((turno + 1) mod 2)
@@ -920,59 +893,21 @@ to jugar4
     print "Que calaja tan bonitaa :D\n"
     print "Espero que esta vez te cuente un poco más ganarme y recuerda que aprendo contigo :D"
 
-    let m 5
+    let i-state one-of states with [content = matriz-global and player = 1]
+    let m 0
 
-    (ifelse (any? states with [content = matriz-global and player = 1] and any? last [my-out-transitions] of states with [content = matriz-global and player = 1])[
+    ifelse (nobody !=  i-state and any? last [my-out-transitions] of states with [content = matriz-global and player = 1])[
 
-      print "Nodo encontrado"
-
-      let i-state one-of states with [content = matriz-global and player = 1]
+      print "Nodo encontrado :DD"
       ask i-state [
         let accion max-one-of my-out-transitions [Q]
         ask accion [set m rule]
       ]
 
     ][
-
-      let tls applicable-transitions matriz-global 1
-      let trans one-of tls
-
-      set m trans
-
-      (ask states with [content = matriz-global][
-
-        print "Estado encontrado"
-
-        ;let applied-state apply-transition trans content player
-        let applied-state apply-transition trans matriz-global 1
-
-        ;(ifelse (not any? states with [content = applied-state and player = pp])[
-        (ifelse (not any? states with [content = applied-state])[
-          ; Create a new agent for every new state
-          hatch-states 1
-          [
-          set content applied-state
-            set explored? false
-            set label content
-            ; and connect it to its father with a labelled link
-            create-transition-from myself [
-              set Q 0
-              set RR (first ( first ([content] of end2))) - (last (first ([content] of end2)))
-              set variation (Max-Variation + 1)
-            set rule trans
-            ]
-            ; Complete the path from initial state to here
-            set path lput self path
-            set player 0
-          ]
-
-          set explored? true
-        print "Se ha creado un nuevo nodo :D"
-        ][
-          print "EL NODO YA ESTABA CREADO :DDDD"
-        ])
-      ])
-    ])
+      print "No se ha encontrado el nodo, pasando a modo Monte Carlo para poder aprender la jugada"
+      set m (Q-addNode 1 matriz-global true true 0)
+    ]
 
     print(word "Al final, he decidido repartir las semillas del hueco " m)
     print "--------------------------------------------------------------------------------------------------\n"
@@ -987,6 +922,8 @@ to jugar4
       wait 1
     ]
     if(turno-extra)[
+      ask states with [content = matriz-global and player = 0][set player 1]
+
       representaTurno
       set jugado? false
       set turno-extra false
@@ -1177,7 +1114,7 @@ numEntrenamiento
 numEntrenamiento
 0
 1000
-5.0
+1000.0
 1
 1
 NIL
