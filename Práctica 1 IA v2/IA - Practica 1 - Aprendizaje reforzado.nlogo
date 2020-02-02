@@ -59,6 +59,16 @@ to setup
 
   representaTurno
 
+  ; Create the agent associated with the initial state
+  create-states 1
+  [
+    set content [[0 4 4 4 4 4 4][4 4 4 4 4 4 0]]
+    set path (list self)
+    set explored? false
+    set player 0
+    hide-turtle
+  ]
+
   reset-ticks
 
 end
@@ -739,16 +749,6 @@ to Q-learning
 
   set contJugadas 0
 
-  ; Create the agent associated with the initial state
-  create-states 1
-  [
-    set content [[0 4 4 4 4 4 4][4 4 4 4 4 4 0]]
-    set path (list self)
-    set explored? false
-    set player 0
-    hide-turtle
-  ]
-
   creaTablero
   representaTablero
   representaTurno
@@ -761,8 +761,6 @@ to Q-learning
       set contJugadas (contJugadas + 1)
 
       creaTablero
-      representaTablero
-      representaTurno
 
       ask transitions [
           if(not empty? [Q] of ([my-out-transitions] of end2))[
@@ -774,6 +772,8 @@ to Q-learning
     ]
   ]
 
+  representaTablero
+  representaTurno
   print "Se acabo el entrenamiento :D"
   set turno 0
 
@@ -1249,10 +1249,10 @@ NIL
 1
 
 SWITCH
-233
-441
-336
-474
+828
+262
+931
+295
 debug
 debug
 1
@@ -1277,7 +1277,7 @@ NIL
 1
 
 SLIDER
-945
+936
 261
 1117
 294
@@ -1285,7 +1285,7 @@ numEntrenamiento
 numEntrenamiento
 0
 1000
-10.0
+100.0
 1
 1
 NIL
