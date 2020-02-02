@@ -735,6 +735,9 @@ to Q-learning
 
 end
 
+; Q-training entrena a la IA, para ello se juega una partida normal en la que se enfrantan los dos
+; jugadores, uno entrenando y aprendiendo y el otro haciendo uso del algoritmo de Monte Carlo
+
 to Q-training
 
   set turno-extra false
@@ -799,7 +802,47 @@ to-report Q-addNode [p matriz MCTS? IA? xr]
   ; en caso de que la función no haya sido llamada por la IA, usamos la coordenada x del ratón capturada anteriormente
 
   ifelse(IA?)[
-    ifelse(MCTS?)[set trans MCTS:UCT (list matriz-global 1) 1000][set trans one-of tls]
+    ifelse(MCTS?)[set trans MCTS:UCT (list matriz-global ((p + 1) mod 2)) 1000][
+      ; En el caso en el que no se decida usar MCTS, si el número de jugadas ya ha superado la mitad, se intenta jugar
+      ; con los estado que ya tiene para así poder aprender a usar lo que ha aprendido. En el caso en que no exista
+      ; una jugada para dicho nodo, simplemente se escoge de manera aleatoria
+
+      ifelse(numEntrenamiento / 2 < contJugadas)[
+        let i-state one-of states with [content = matriz-global and player = 1]
+        if(nobody !=  i-state and any? last [my-out-transitions] of states with [content = matriz-global and player = 1])[
+          if(debug)[print "Nodo encontrado :DD"]
+          ask i-state [
+            let accion max-one-of my-out-transitions [Q]
+            ask accion [set trans rule]
+          ]
+        ]
+      ][
+
+        ; Creamos una lista vacía donde almacenaremos las parejas RR-trans
+        let RR-rule []
+        let maxRR 1
+        let find? false
+        let end? false
+
+        ; Para cada elemento de la lista, calculamos la bondad y creamos una lista que contenga pares de bondad-regla
+        foreach tls [t ->
+          let prox apply-transition t matriz p
+          let RRaux (first ( first prox)) - (last (first prox))
+          let aux (list RRaux t)
+          ; Aprovechamos el bucle para calcular el máximo R
+          if(RRaux > maxRR)[set maxRR RRaux]
+          set RR-rule (lput aux RR-rule)
+        ]
+
+        ; Para cada elemento de la lista, calculamos la probabilidad y creamos una lista que contenga pares de probabilidad-regla
+        let prob-rule map[x -> (list (first x / maxRR) (last x))]RR-rule
+        foreach prob-rule[x -> if(not find? and random-float 1.0 <= first x)[set find? true set trans last x] if(last x = last tls)[set end? true]]
+
+        ; Si no se ha podido seleccionar ninguno ya que las probabilidades iniciales son 0, se escoge aleatoriamente
+        if(end? and not find?)[set trans one-of tls]
+
+      ]
+    ]
   ][
     set trans xr
   ]
@@ -1114,7 +1157,7 @@ numEntrenamiento
 numEntrenamiento
 0
 1000
-1000.0
+1.0
 1
 1
 NIL
