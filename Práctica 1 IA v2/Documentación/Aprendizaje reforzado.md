@@ -61,15 +61,31 @@ Este método nos ayuda a añadir un vértice al grafo en el caso en que no exist
 - **P**: Jugador al que le toca jugar esta turno(coincide con el número de turno)
 - **XR**: Posición X del ratón, la cual usamos para poder realizar la jugada
 - **MATRIZ**: Matriz que representa el estado del tablero desde el que queremos añadir el nodo
-- **IA?**: Si la ponemos a **true**, es la IA la que llama a la función, por lo que se pasará a evaluar si se va a usar el algoritmo de Monte Carlo o no. Si la ponemos a **false**, evaluamos la posible adición de un nuevo estado en función de si ya existe uno o no, si no existe se crea usando la variable **XR** 
+- **IA?**: Si la ponemos a **true**, es la IA la que llama a la función, por lo que se pasará a evaluar si se va a usar el algoritmo de Monte Carlo o no. En el caso en que no se use el algoritmo de Monte Carlo, escogemos la jugada en base a una probabilidad que asignamos a las distintas reglas. Si la ponemos a **false**, evaluamos la posible adición de un nuevo estado en función de si ya existe uno o no, si no existe se crea usando la variable **XR** 
 - **MCTS?**: Si la ponemos a **true** usará el algoritmo de Monte Carlo para determinar la jugada. Si la ponemos a **false** el algoritmo escogerá la próxima jugada en función de una probabilidad calculada a partir de la bondad de la selección 
 
 ### Q-TRAINING
 
+Este es el método al que se llama cuando queremos que la máquina se entrene jugando. Para mejorar el aprendizaje y que nuestro jugador no se enfrente a una máquina que escoge por probabilidades, se hace uso de Monte Carlo para determinar las jugadas, de esta forma, nuestro jugador aprenderá a enfrentarse a jugadas más complejas por lo que posteriormente sabrá hacerles frente de una mejor forma.
+
+En cada turno se llama a la función **Q-addNode** para que evalúe si existe un estado con la jugada que acabamos de hacer y en caso de que no exista se añade al mundo, de esta manera tenemos siempre la **exploración** del mundo activa. Si el número de partidas jugadas es mayor que la mitad de partidas que hemos seleccionado para entrenar, nuestro jugador busca por los nodos que ha creado en el mundo, si encuentra uno con el que pueda determinar la jugada, usará ese nodo, en caso de que el estado no exista, se limitará a escoger la jugada en base a la probabilidad como anteriormente.
+
+### JUGAR 4
+
+Este es el método que nos permite jugar contra nuestro jugador. Cada vez que jugamos, nuestro jugador continúa con la **exploración**, es decir, sigue añadiendo estados al grafo si no existen para así poder aprender las jugadas. 
+
+Podemos encontrarnos con dos casos a la hora de jugar, el caso en el que existe el estado con la distribución actual del tablero, en el cual se buscará realizar la jugada cuya Q sea la mayor y el caso en  el que el estado aún no existe. En el caso de que no exista el estado que estamos buscando, se usa el algoritmo de Monte Carlo para determinar la jugada ya que aunque podríamos usar las probabilidades como anteriormente, lo interesante es que nuestro jugador pueda aprender también jugadas medianamente buenas y la persona contra la que juega no se aburra.
+
+## CONCLUSIONES
 
 
-### 
 
+## REFERENCIAS
 
+**Fernando Sancho Caparrini**, Introducción al Aprendizaje Automático, http://www.cs.us.es/~fsancho/?e=75
 
-Para mejorar el aprendizaje y que nuestro jugador no se enfrente a una máquina que escoge 
+**Fernando Sancho Caparrini**, Aprendizaje por refuerzo: algoritmo Q Learning, http://www.cs.us.es/~fsancho/?e=109
+
+**Rubén López**, Q-learning: Aprendizaje automático por refuerzo, https://rubenlopezg.wordpress.com/2015/05/12/q-learning-aprendizaje-automatico-por-refuerzo/
+
+**Dot CSV**, ¡Esta IA juega al ESCONDITE demasiado bien! https://www.youtube.com/watch?v=5SkQuT3kZOc&t=214s

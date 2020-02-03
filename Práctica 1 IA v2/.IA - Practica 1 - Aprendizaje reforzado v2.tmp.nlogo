@@ -830,15 +830,15 @@ to-report Q-addNode [p matriz MCTS? IA? xr]
       ; Si no se ha podido seleccionar ninguno ya que las probabilidades iniciales son 0, se escoge aleatoriamente
       if(end? and not find?)[set trans one-of tls]
 
-      if(numEntrenamiento / 2 < contJugadas)[
-        let i-state one-of states with [content = matriz-global and player = 1]
-        if(nobody !=  i-state and any? last [my-out-transitions] of states with [content = matriz-global and player = 1])[
-          if(debug)[print "Nodo encontrado :DD"]
-          ask i-state [
-            let accion max-one-of my-out-transitions [Q]
-            ask accion [set trans rule]
-          ]
-        ]
+      ;if(numEntrenamiento / 2 < contJugadas)[
+      ;  let i-state one-of states with [content = matriz-global and player = 1]
+      ;  if(nobody !=  i-state and any? last [my-out-transitions] of states with [content = matriz-global and player = 1])[
+      ;    if(debug)[print "Nodo encontrado :DD"]
+      ;    ask i-state [
+      ;      let accion max-one-of my-out-transitions [Q]
+      ;      ask accion [set trans rule]
+      ;    ]
+      ;  ]
       ]
 
     ]
