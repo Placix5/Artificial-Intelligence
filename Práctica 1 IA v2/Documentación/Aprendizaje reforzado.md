@@ -20,6 +20,106 @@ Tras realizar este movimiento pueden darse tres casos posibles:
 
 La partida terminará cuando una de las dos filas se encuentre totalmente vacía y ganará el jugador que posea más semillas en su kalaha
 
+## MANCALA
+
+En este punto vamos a ver todo lo relacionado con el juego Mancala, desde cómo se ha modelizado hasta cómo hemos hecho la parte gráfica.
+
+### MODELIZACIÓN
+
+Para este juego, hemos modelizado el tablero con una matriz de dos filas.
+En la primera fila de la matriz se encuentra la línea superior del tablero, además, en la primera
+posición se encuentra la kalaha correspondiente al jugador que juegue en la parte superior del
+tablero.
+En la segunda fila de la matriz se encuentra la línea inferior del tablero, además, en la última
+posición se encuentra la kalaha correspondiente al jugador que juegue en la parte inferior del
+tablero.
+Hemos redimensionado el mundo para que los patches nos hagan de tablero, de forma que los
+patches superiores, los cuales tienen pycor = 1, corresponden a la línea superior del tablero y los
+patches inferiores, los cuales tienen pxcor = 0, corresponden a la línea inferior del tablero. Esto nos
+servirá cuando vayamos a aplicar una jugada, ya que así sabremos que el jugador ha seleccionado
+un hueco correspondiente a su fila y además nos servirá para representar ambas filas del tablero.
+Además, la coordenada x de los patches nos sirve para determinar el hueco del tablero sobre el que
+vamos a trabajar. En el caso de la línea superior, si el jugador selecciona el hueco x, trabajaremos
+sobre la posición x en la fila superior de la matriz ya que corresponde con el índice del hueco en el
+que están las semillas que se quieren repartir. Por otro lado, en la línea inferior del tablero, si el
+jugador selecciona el hueco x, trabajaremos sobre la posición x-1 en la fila inferior de la matriz ya
+que, en este caso, dicha fila se encuentra desplazada una posición a la derecha ya que la kalaha del
+jugador superior toma dos partches:
+
+​																	**ls1 = [0 4 4 4 4 4 4]**
+​																	**pxcor = 0 1 2 3 4 5 6**
+​																	**ls2 = [4 4 4 4 4 4 0]**
+​																	**pxcor = 1 2 3 4 5 6 7**
+
+Aquí podemos ver de una forma más visual la relación entre posiciones y coordenadas.
+Una vez que sabemos la posición de la lista sobre la que vamos a trabajar, mediante las
+coordenadas x e y seleccionadas con el ratón, cargamos el contenido del hueco en una variable y
+empezamos a repartir semillas por el tablero sumando uno a cada hueco de la lista de la manera
+correspondiente a cada una de las filas (en la fila superior de derecha a izquierda y en la fila inferior
+de izquierda a derecha) y una vez que hemos dado una vuelta completa, las semillas que hayan
+sobrado las añadimos a nuestra kalaha, si es que han sobrado algunas. Para realizar todas estas
+acciones se usa la función aplicaJugada, la cual recibe como parámetros las coordenadas xr e yr y
+además el jugador que realiza el movimiento.
+En cada movimiento, se mira también la última semilla, para saber si se activa el doble turno o la
+posibilidad de robar al otro jugador.
+Todo esto se ha modelizado usando una variable llamada matriz-global.
+
+### PARTE GRÁFICA
+
+El tablero, como dijimos anteriormente, está formado por dos filas, cada una de ellas con seis
+huecos y dos kalahas en los laterales, además, se ha añadido una columna adicional para
+representar el turno de una forma más visual. Para representar este tablero se han usado los
+patches del mundo, cambiándoles el color según lo necesitemos.
+Para representar las semillas se han usado tortugas, cada una de ellas representa una semilla y se
+encuentra en uno de los huecos correspondientes al tablero. Las tortugas del jugador que juegue en
+la línea inferior del tablero son de color rojo, mientras que las del otro jugador son de color azul.
+Además del valor del patch para representar de forma más precisa el número exacto de semillas, ya
+que a veces no se puede distinguir a simple vista el número de semillas que hay.
+Para realizar esta representación gráfica se han creado dos funciones:
+- **representaTablero**: La cual representa el estado actual del tablero basándose en la variable
+matriz-global. Para ellos, se crean tantas tortugas como semillas haya y se colocan por el
+tablero en su correspondiente lugar.
+- **representaTurno**: La cual representa el turno del jugador al que le toca jugar usando dos
+patches de colores, iluminando el patch del color correspondiente al jugador que tiene el
+turno.
+
+## MONTE CARLO
+
+Como se ha dicho en la introducción, para implementar el jugador automático se ha usado el
+algoritmo de Monte Carlo.
+Las funciones más relevantes que se han implementado para que el algoritmo de Monte Carlo
+pueda funcionar son:
+
+### MCTS:GET-RULES
+
+Esta función recibe como parámetro un estad0 y devuelve como posibles jugadas una lista
+con los índices de las filas de la matriz cuyo contenido en la lista no está vacío.
+Dependiendo si el jugador que acaba de jugar ha sido el jugador 1 o el jugador 2, se
+devuelve la lista dicha anteriormente para la parte superior o inferior del tablero
+respectivamente.
+
+### MCTS:APPLY
+
+Esta función recibe un estado y una regla y en función de esos dos parámetros crea estados
+en los que se haya aplicado dicha regla.
+Para ello se usa la función aplicaJugadaMC la cual es una adaptación de la función
+aplicaJugada, ya que aplicaJugada trabaja directamente sobre la matriz-global y no nos
+interesa eso, ya que nos interesa una función que devuelva el valor de la matriz-global pero
+sin llegar a cambiarlo de forma real.
+
+### MCTS:GET-RESULT
+
+Esta función recibe un estado y un jugador y en función de esos dos parámetros se
+comprueba si es un nodo final del árbol o si no lo es.
+Esto es así ya que al algoritmo busca ganar, de modo que busca el camino más corto hasta
+el nodo que consiga hacerle vencedor. Para ello, hemos modelizado el get-result haciendo
+que devuelva el número de semillas que hay en la kalaha, de esta forma, busca siempre
+maximizar ese número, lo que se traduce en que busca ganar con la mayor puntuación
+posible. Además, se ha recortado el árbol debido a que se toma como nodo final, aquél en el
+que la kalaha tiene 24 semillas o más, ya que una vez llegado a ese estado, haga las jugadas
+que haga va a ganar puesto que hay 48 semillas en total y en ningún momento varía el
+número de semillas.
+
 ## Q-LEARNING
 
 Q-learning es una forma de aprendizaje por refuerzo en la que el agente aprende a asignar valores de bondad a los pares (estado,acción), siendo el estado óptimo aquel en el que el agente conoce a priori los valores Q de todos los posibles pares (estado,acción) ya que podría usar dicha información para seleccionar la acción adecuada para cada estado. El problema es que al principio el agente no tiene esta información, por lo que su primer objetivo es aproximar lo mejor posible esta asignación de valores Q. Como los valores de Q dependen tanto de recompensas futuras como de recompensas actuales, hemos de proporcionar un método que sea capaz de calcular el valor final a partir de los valores inmediatos y locales. Para ello hay que aprender a evitar aquellas acciones que provoquen resultados no deseados y si todas las acciones posibles de un estado dan resultados negativos debemos aprender a evitar siempre que se pueda dicho estado. Matemáticamente se ha usado la siguiente ecuación para formalizar el cálculo de los valores de Q:
@@ -89,3 +189,5 @@ Podemos encontrarnos con dos casos a la hora de jugar, el caso en el que existe 
 **Rubén López**, Q-learning: Aprendizaje automático por refuerzo, https://rubenlopezg.wordpress.com/2015/05/12/q-learning-aprendizaje-automatico-por-refuerzo/
 
 **Dot CSV**, ¡Esta IA juega al ESCONDITE demasiado bien! https://www.youtube.com/watch?v=5SkQuT3kZOc&t=214s
+
+**Dot CSV**, Montezuma's Revenge - ¿Hito del Aprendizaje Reforzado? | Data Coffee #8, https://www.youtube.com/watch?v=DBJh4cfq0ro
