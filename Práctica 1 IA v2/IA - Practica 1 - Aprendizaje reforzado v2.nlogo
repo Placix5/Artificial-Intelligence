@@ -1160,7 +1160,7 @@ numEntrenamiento
 numEntrenamiento
 0
 1000
-10.0
+1000.0
 1
 1
 NIL
@@ -1176,6 +1176,17 @@ contJugadas
 17
 1
 11
+
+SWITCH
+936
+297
+1118
+330
+MCTS-Training?
+MCTS-Training?
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?

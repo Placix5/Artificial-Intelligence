@@ -166,7 +166,7 @@ Este método nos ayuda a añadir un vértice al grafo en el caso en que no exist
 
 ### Q-TRAINING
 
-Este es el método al que se llama cuando queremos que la máquina se entrene jugando. Para mejorar el aprendizaje y que nuestro jugador no se enfrente a una máquina que escoge por probabilidades, se hace uso de Monte Carlo para determinar las jugadas, de esta forma, nuestro jugador aprenderá a enfrentarse a jugadas más complejas por lo que posteriormente sabrá hacerles frente de una mejor forma.
+Este es el método al que se llama cuando queremos que la máquina se entrene jugando. Podemos escoger dos modos de entrenamiento, uno en el que la máquina contra la que se va a enfrentar nuestro jugador usa Monte Carlo y otro en el que la máquina escoja la jugada por probabilidad, para ello se ha añadido un botón en la interfaz principal con el nombre **MCTS-Training?** donde podemos escoger si queremos usar Monte Carlo o no.
 
 En cada turno se llama a la función **Q-addNode** para que evalúe si existe un estado con la jugada que acabamos de hacer y en caso de que no exista se añade al mundo, de esta manera tenemos siempre la **exploración** del mundo activa. Si el número de partidas jugadas es mayor que la mitad de partidas que hemos seleccionado para entrenar, nuestro jugador busca por los nodos que ha creado en el mundo, si encuentra uno con el que pueda determinar la jugada, usará ese nodo, en caso de que el estado no exista, se limitará a escoger la jugada en base a la probabilidad como anteriormente.
 
