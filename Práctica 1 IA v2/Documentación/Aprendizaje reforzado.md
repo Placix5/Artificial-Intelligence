@@ -6,7 +6,7 @@ El aprendizaje reforzado es algo muy común en nuestras vidas, los seres humanos
 
 El aprendizaje reforzado es una muy buena forma de poder enseñar a una máquina, el problema es que está un poco limitado. Esto es así debido a que nuestro agente solo aprenderá aquella tarea que le hemos asignado, no será capaz de aumentar la complejidad más allá de ello, por ejemplo, si queremos enseñar a un agente a que chute y marque en una portería no aprenderá más que a chutar, no será capaz de aprender a hacer regates o a tirar de chilena. ¿Cómo podemos aumentar el grado de complejidad de nuestro agente? La respuesta es con un sistema multiagente, en el que hayan varios agentes compitiendo por el mismo objetivo, de esta manera, cada agente aprenderá y utilizará nuevas técnicas para así poder conseguir su objetivo, aumentando así el grado de complejidad y consiguiendo el objetivo que estábamos buscando.
 
-En esto se basa este proyecto, se ha buscado entrenar un sistema multiagente mediante aprendizaje reforzado para así poder crear posteriormente un jugador que pueda jugar contra una persona y que esté lleno de sorpresas y técnicas complejas que otros algoritmos más simples como Monte Carlo no podrían conseguir. Para ello hemos usado el algoritmo Q-learning, del cual hablaremos más adelante. 
+En esto se basa este proyecto, se ha buscado entrenar un sistema multi-agente mediante aprendizaje reforzado para así poder crear posteriormente un jugador que pueda jugar contra una persona y que esté lleno de sorpresas y técnicas complejas que otros algoritmos más simples como Monte Carlo no podrían conseguir. Para ello hemos usado el algoritmo Q-learning, del cual hablaremos más adelante. 
 
 El jugador que hemos desarrollado está pensado para el juego conocido como Mancala. El juego Mancala es un juego de origen árabe, cuyo nombre significa mover. Este juego consiste en dos filas, cada una de ellas con 6 huecos y dos kalahas, situadas en los laterales del tablero. A cada jugador le corresponde una fila y la kalaha que esté a su derecha. Dentro de cada uno de los huecos de las filas encontramos de manera inicial cuatro semillas. El objetivo del juego es conseguir el mayor número de semillas en la kalaha, de forma que el único movimiento posible es repartir todas las semillas de un hueco en sentido antihorario.
 
@@ -176,9 +176,35 @@ Este es el método que nos permite jugar contra nuestro jugador. Cada vez que ju
 
 Podemos encontrarnos con dos casos a la hora de jugar, el caso en el que existe el estado con la distribución actual del tablero, en el cual se buscará realizar la jugada cuya Q sea la mayor y el caso en  el que el estado aún no existe. En el caso de que no exista el estado que estamos buscando, se usa el algoritmo de Monte Carlo para determinar la jugada ya que aunque podríamos usar las probabilidades como anteriormente, lo interesante es que nuestro jugador pueda aprender también jugadas medianamente buenas y la persona contra la que juega no se aburra.
 
+## PRUEBAS
+
+Las pruebas se han realizado con los dos tipos de entrenamiento, uno en el que nuestro jugador se enfrenta a la máquina que usa Monte Carlo y otro en el que no se usa Monte Carlo en el rival. Para realizar las pruebas, en ambos casos se ha entrenado a nuestro jugador con 1000 partidas, ya que no disponía de medios ni tiempos para hacer un entrenamiento más complejo, pero nos dará una idea aproximada de qué entrenamiento es mejor. Una vez entrenadas se ha escogido a un jugador medio de Mancala para medirlos en varias partidas y ver si había alguna evolución, ya que nuestro jugador siempre se encuentra con la exploración activa.
+
+### ENTRENAMIENTO CON MONTE CARLO
+
+El entrenamiento usando el algoritmo de Monte Carlo es muy lento en comparación del entrenamiento en el que no se usa Monte Carlo, ya que para cada jugada en cada partida crea un árbol con 1000 vértices de profundidad, por lo que aumenta mucho el coste en tiempo, sin embargo, tras realizar las partidas contra el sujeto, al principio mostró que podía ganar, aunque posteriormente el sujeto aprendió a ganarle ya que como seres humanos que somos, el aprendizaje por refuerzo es una parte de nosotros.
+
+Con las 1000 partidas que entrenó, conseguimos un total de 20.000 estados aproximadamente.
+
+![Entrenamiento con Monte Carlo.png](C:\Users\Placi\Documents\GitHub\Artificial-Intelligence\Práctica 1 IA v2\Documentación\Entrenamiento con Monte Carlo.png)
+
+Como se puede ver en el grafo, la IA empezó a perder partidas y a empeorar, esto es debido a que nuestro sujeto aprendió las técnicas que usaba la IA y a usarlas en su contra. Si le hubiésemos dado más partidas para que entrenase, quizás habría desarrollado técnicas diferentes y nuestro sujeto no podría haber ganado en ningún caso.
+
+### ENTRENAMIENTO SIN MONTE CARLO
+
+El entrenamiento sin usar Monte Carlo es computacionalmente más rápido ya que no requiere de crear un árbol muy grande, puesto que ambas máquinas escogen la próxima jugada en base a una probabilidad. 
+
+Con las 1000 partidas que entrenó, conseguimos un total de 27.000 estados aproximadamente. Bastantes más estados que con el entrenamiento con Monte Carlo, aunque que haya más estado no significa que el entrenamiento sea mejor, ya que puede que de esos 27.000 estados, 15.000 sean estados inútiles que nunca se van a dar en una partida normal.
+
+![Entrenamiento sin Monte Carlo.png](C:\Users\Placi\Documents\GitHub\Artificial-Intelligence\Práctica 1 IA v2\Documentación\Entrenamiento sin Monte Carlo.png)
+
+En este caso, nuestro sujeto ya se había enfrentado anteriormente a la IA, por lo que le resultó más fácil conseguir la victoria desde el principio, aún así, la IA supo defenderse más que con el entrenamiento con Monte Carlo. Al igual que en el caso anterior, si hubiese entrenado con más partidas, quizás habría desarrollado técnicas diferentes y podría haberse hecho con la victoria.
+
 ## CONCLUSIONES
 
+Q-learning es un algoritmo de aprendizaje por refuerzo muy fácil de implementar y muy interesante para aprender cómo funciona dicho tipo de aprendizaje. El problema del aprendizaje por refuerzo es que en juegos grandes requiere de mucho entrenamiento y para ello es necesario una infraestructura que pueda proporcionar dicho entrenamiento.
 
+En base al entrenamiento que yo he podido proporcionar a esta IA, me ha sorprendido gratamente ya que en muy pocas partidas, prácticamente aprendió a que no le pudiesen robar. Quizás con un entrenamiento más extenso pueda aprender técnicas que nos sorprendan y llegar a convertirse así en un gran rival que seguirá aprendiendo sobre cómo jugamos y a ganarnos.
 
 ## REFERENCIAS
 
@@ -191,3 +217,5 @@ Podemos encontrarnos con dos casos a la hora de jugar, el caso en el que existe 
 **Dot CSV**, ¡Esta IA juega al ESCONDITE demasiado bien! https://www.youtube.com/watch?v=5SkQuT3kZOc&t=214s
 
 **Dot CSV**, Montezuma's Revenge - ¿Hito del Aprendizaje Reforzado? | Data Coffee #8, https://www.youtube.com/watch?v=DBJh4cfq0ro
+
+**Francisco Javier Ceballos López**, El sujeto
